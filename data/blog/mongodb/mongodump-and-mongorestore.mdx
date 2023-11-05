@@ -1,0 +1,36 @@
+---
+title: MongoDB 数据备份与恢复
+date: '2023-03-08'
+tags: ['mongodb']
+draft: false
+summary: Example of a markdown file with code blocks and syntax highlighting
+---
+
+mongodump 和 mongorestore 是 MongoDB 数据库自带的全量备份恢复工具。使用前需要安装官方提供的数据库工具（[MongoDB Database Tools](https://www.mongodb.com/docs/database-tools/)）。
+
+使用 mongodump 备份是最灵活的，同时也是速度最慢的一种备份工具，因为它需要将数据全部读出来并写入文件。
+
+## 数据备份
+
+使用 mongodump 命令可以通过参数指定需要备份的数据量以及转存的服务器。
+其语法如下：
+
+```bash
+mongodump -h dbhost -d dbname -o dbdirectory
+```
+
+参数说明（见 options）：
+
+- `--host=<hostname><:port>, -h=<hostname><:port>`: MongoDB 所在服务器地址，例如：127.0.0.1，当然也可以指定端口号：127.0.0.1:27017
+- `--db=<database>, -d=<database>`: 需要备份的数据库实例，例如：test
+- `--collection=<collection>, -c=<collection>`: 执行备份的集合，如果没有指定，则备份所有集合
+- `--query=<json>, -q=<json>`: 查询条件，需要指定 collection
+- `--out=<path>, -o=<path>`: 指定备份文件的存放目录，该目录需要提前建立，在备份完成后，系统自动在 dump 目录下建立一个 test 目录，在这个目录中存放该数据库实例的备份数据。
+
+更多可选参数：
+
+| 语法                                            | 描述                  | 实例                                           |
+| ----------------------------------------------- | --------------------- | ---------------------------------------------- |
+| mongodump –host HOST_NAME –port PORT_NUMBER     | 备份所有 MongoDB 数据 | mongodump –host runoob.com –port 27017         |
+| mongodump –dbpath DB_PATH –out BACKUP_DIRECTORY |                       | mongodump –dbpath /data/db/ –out /data/backup/ |
+| mongodump –collection COLLECTION –db DB_NAME    | 备份指定数据库的集合  | mongodump –collection mycol –db test           |
