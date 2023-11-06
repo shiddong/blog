@@ -9,7 +9,7 @@ import Image from '@/components/Image'
 import Tag from '@/components/Tag'
 import siteMetadata from '@/data/siteMetadata'
 import ScrollTopAndComment from '@/components/ScrollTopAndComment'
-import TOC from '@/components/Toc'
+import TOC, { Toc } from '@/components/Toc'
 
 const editUrl = (path) => `${siteMetadata.siteRepo}/blob/main/data/${path}`
 const discussUrl = (path) =>
@@ -23,7 +23,7 @@ const postDateTemplate: Intl.DateTimeFormatOptions = {
 }
 
 interface LayoutProps {
-  content: CoreContent<Blog>
+  content: CoreContent<Blog & { toc: Toc }>
   authorDetails: CoreContent<Authors>[]
   next?: { path: string; title: string }
   prev?: { path: string; title: string }
@@ -126,7 +126,7 @@ export default function PostLayout({ content, authorDetails, next, prev, childre
 }
 
 interface SidebarProps {
-  content: CoreContent<Blog>
+  content: CoreContent<Blog & { toc: Toc }>
   next?: { path: string; title: string }
   prev?: { path: string; title: string }
 }
@@ -186,7 +186,7 @@ const Sideber = ({ content, prev, next }: SidebarProps) => {
       </div> */}
 
       <div className="sticky top-0 ">
-        <TOC toc={toc as any} />
+        <TOC toc={toc} />
       </div>
     </footer>
   )
