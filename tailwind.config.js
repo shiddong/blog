@@ -26,7 +26,7 @@ module.exports = {
       },
       colors: {
         primary: colors.cyan,
-        gray: colors.gray,
+        gray: colors.slate,
       },
       typography: ({ theme }) => ({
         DEFAULT: {
