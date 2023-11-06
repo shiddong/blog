@@ -7,14 +7,16 @@ import { MDXLayoutRenderer } from 'pliny/mdx-components'
 import { sortPosts, coreContent, allCoreContent } from 'pliny/utils/contentlayer'
 import { allBlogs, allAuthors } from 'contentlayer/generated'
 import type { Authors, Blog } from 'contentlayer/generated'
+import PostDefault from '@/layouts/PostDefault'
 import PostSimple from '@/layouts/PostSimple'
 import PostLayout from '@/layouts/PostLayout'
 import PostBanner from '@/layouts/PostBanner'
 import { Metadata } from 'next'
 import siteMetadata from '@/data/siteMetadata'
 
-const defaultLayout = 'PostLayout'
+const defaultLayout = 'PostDefault'
 const layouts = {
+  PostDefault,
   PostSimple,
   PostLayout,
   PostBanner,
@@ -27,9 +29,11 @@ export async function generateMetadata({
 }): Promise<Metadata | undefined> {
   const slug = decodeURI(params.slug.join('/'))
   const post = allBlogs.find((p) => p.slug === slug)
+  // author 信息在 data/authors 下
   const authorList = post?.authors || ['default']
   const authorDetails = authorList.map((author) => {
     const authorResults = allAuthors.find((p) => p.slug === author)
+
     return coreContent(authorResults as Authors)
   })
   if (!post) {
