@@ -38,26 +38,40 @@ const TOCInline = ({
     ? new RegExp('^(' + exclude.join('|') + ')$', 'i')
     : new RegExp('^(' + exclude + ')$', 'i')
 
-  console.log(`TOCInline`)
-  console.log(toc)
-
   const filteredToc = toc.filter(
     (heading) =>
       heading.depth >= fromHeading && heading.depth <= toHeading && !re.test(heading.value)
   )
 
-  console.log(`TOCInline- filtered`)
-  console.log(filteredToc)
+  const getIndentDepth = (depth: number) => {
+    let result = ''
+    switch (depth) {
+      case 2:
+        result = 'ml-3'
+        break
+      case 3:
+        result = 'ml-6'
+        break
+      case 4:
+      case 5:
+      case 6:
+        result = 'ml-8'
+        break
+      default:
+        result = ''
+    }
+
+    return result
+  }
 
   const tocList = (
     <ul>
       {filteredToc.map((heading) => (
         <li
           key={heading.value}
-          className={`${
-            // heading.depth >= indentDepth && 'ml-6'
-            `ml-${(heading.depth - 1) * 3}`
-          } tracking-wide text-gray-500 hover:font-bold hover:text-cyan-600 dark:text-gray-400`}
+          className={`${getIndentDepth(
+            heading.depth
+          )} tracking-wide text-gray-500 hover:font-bold hover:text-cyan-600 dark:text-gray-400`}
         >
           <a href={heading.url}>{heading.value}</a>
         </li>
