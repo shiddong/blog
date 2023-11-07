@@ -1,0 +1,254 @@
+---
+title: Webpack 的基本概念
+date: '2023-03-17'
+tags: ['webpack']
+draft: true
+summary: mongodump 和 mongorestore 是 MongoDB 数据库自带的全量备份恢复工具。使用前需要安装官方提供的数据库工具。使用 mongodump 备份是最灵活的，同时也是速度最慢的一种备份工具，因为它需要将数据全部读出来并写入文件。
+---
+
+Webpack 是一个现代 Javascript 应用程序的静态模块打包器。当 Webpack 处理应用程序时，它会将一切资源都看作是模块，不管是代码资源如 JS、CSS 等，还是非代码资源如图片、字体等，这些模块之间是会存在依赖关系的。它会递归地构建一个依赖关系图，其中包含应用程序需要的每个模块，然后将所有这些模块打包成一个或多个bundle。
+
+![webpack-modules](/static/images/blog/webpack/webpack-modules.png)
+
+在 Webpack 中，entry、output、loader、plugins 和 mode 等配置项决定了如何构建依赖关系图。我们首先了解一下它们的基本概念。
+
+# 基本配置项
+
+## entry
+
+Webpack 是根据入口文件找到它的所有依赖，而依赖又会有新的依赖，从而不断的加入到依赖关系图中。
+
+在我们常见的项目中，如果是单页应用，那么入口一般只有一个；如果是多个页面的项目，那么经常是一个页面会对应一个构建入口，即具有多个入口。在 Webpack 的配置文件中使用 entry 用来指定打包入口，支持两种配置方式：单入口、多入口。
+
+### 单入口
+
+只有一个入口时，entry 是一个字符串。
+
+```js
+module.exports = {
+  entry: './src/index.js',
+}
+```
+
+### 多入口
+
+有多个入口时，entry 是一个对象。
+
+```js
+module.exports = {
+  entry: {
+    app: './src/app.js',
+    admin: './src/admin.js',
+  },
+}
+```
+
+## output
+
+output 用来指定将构建结果输出到磁盘目录与文件名。可以看上面给出的 Webpack 官网图片右侧，包含 JS、CSS、图片等静态资源文件。
+
+### 单入口
+
+```js
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js',
+    path: path.join(__dirname, 'dist'),
+  },
+}
+```
+
+### 多入口
+
+entry 是可以有多个入口的，但 output 只会有一个，此时是通过占位符来确保文件名的唯一。
+
+```js
+module.exports = {
+  entry: {
+    app: './src/app.js',
+    search: './src/search.js',
+  },
+  output: {
+    filename: '[name].js', // 通过占位符确保⽂件名称的唯⼀
+    path: path.join(__dirname, 'dist'),
+  },
+}
+```
+
+## loaders
+
+其实，Webpack 原生只支持 JS 和 JSON 两种文件类型，而对于其他类型的文件，诸如 jsx/tsx 等语法糖、css(包括 less, sass 等)、图片、字体，Webpack 并不知道它们是什么。此时，需要通过 loaders 去支持其它文件类型，把它们转换成有效的模块，Webpack 在解析时才可以将它们添加到依赖关系图中。
+
+Loader 本身是一个函数，接受源文件作为参数，返回转换的结果。
+
+### 使用方式
+
+在 Webpack 配置文件中，loaders 的位置是放在 module.rules 数组中，其中 test 指定匹配规则，use 指定使用的 loader 名称。
+
+```js
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js',
+  },
+  module: {
+    rules: [{ test: /\.txt$/, use: 'raw-loader' }],
+  },
+}
+```
+
+### 常用的 loaders
+
+官方推荐的常用 loader 列表见：
+
+- [webpack v5 loaders](https://webpack.js.org/loaders/)
+- [webpack v4 loaders](https://v4.webpack.js.org/loaders/)
+- [三方优秀的 loaders](https://webpack.js.org/awesome-webpack/#loaders)
+
+| 类型     | 名称                                                              | 描述                                                                  |
+| -------- | ----------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 语法转换 | [babel-loader](https://webpack.js.org/loaders/babel-loader/)      | 将 ES6、ES7 等 JS 新特性的语法转换为 ES5                              |
+|          | [ts-loader](https://github.com/TypeStrong/ts-loader)              | 将 TS 文件转换成 JS 文件                                              |
+| 样式     | [css-loader](https://webpack.js.org/loaders/css-loader)           | 支持 .css 文件的加载和解析                                            |
+|          | [less-loader](https://webpack.js.org/loaders/less-loader)         | 将 less 文件转换成 css                                                |
+|          | [sass-loader](https://webpack.js.org/loaders/sass-loader)         | 将 sass/scss 文件转换成 css                                           |
+|          | [style-loader](https://webpack.js.org/loaders/style-loader)       | 将 css 添加到 DOM 的内联样式标签 style 里                             |
+|          | [stylus-loader](https://webpack.js.org/loaders/stylus-loader/)    | 将 stylus 文件转换成 css                                              |
+|          | [postcss-loader](https://webpack.js.org/loaders/postcss-loader)   | 用 postcss 来处理 CSS                                                 |
+| 其他文件 | [file-loader](https://v4.webpack.js.org/loaders/file-loader/)     | 解析图片、字体等                                                      |
+|          | [url-loader](https://v4.webpack.js.org/loaders/url-loader/)       | 和 file-loader 类似，但是当文件小于设定的limit时可以返回一个 Data Url |
+|          | [raw-loader](https://v4.webpack.js.org/loaders/raw-loader/)       | 将文件以字符串形式导入                                                |
+| 其他     | [thread-loader](https://v4.webpack.js.org/loaders/thread-loader/) | 多进程打包 JS 和 CSS                                                  |
+
+## plugins
+
+plugins 是用来增强 Webpack 的功能，通常是⽤于 bundle ⽂件的优化、资源管理和环境变量注⼊等。它们是作⽤于整个构建过程的。
+
+### 使用方式
+
+```js
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js'
+  },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: './src/index.html’
+    })
+  ]
+};
+```
+
+### 常见的 plugins
+
+官方推荐的常用 loader 列表见：
+
+- [webpack plugins](https://webpack.js.org/plugins/)
+- [三方优秀的 plugins](https://webpack.js.org/awesome-webpack/#webpack-plugins)
+
+| 名称                                                                    | 描述                                                                                                               |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [CopyWebpackPlugin](https://webpack.js.org/plugins/copy-webpack-plugin) | 将文件或文件夹拷贝到构建的输出目录                                                                                 |
+| [HtmlWebpackPlugin](https://webpack.js.org/plugins/html-webpack-plugin) | 创建 html 文件去承载输出的 bundle，一个页面对应一个 HtmlWebpackPlugin，多个页面时需要在 plugins 数组中添加多个配置 |
+| [TerserPlugin](https://webpack.js.org/plugins/terser-webpack-plugin/)   | JS 文件压缩                                                                                                        |
+
+### 已废弃的著名 plugin
+
+1. CommonsChunkPlugin
+
+其作用是将 chunks 相同的模块代码提取成公共的 JS，在 Webpack4 中已经删除CommosChunksPlugin，改为 optimization.splitChunks 了，见 [SplitChunksPlugin](https://webpack.js.org/plugins/split-chunks-plugin/)
+
+```js
+module.exports = {
+  //...
+  optimization: {
+    splitChunks: {
+      chunks: 'async',
+      minSize: 20000,
+      minRemainingSize: 0,
+      minChunks: 1,
+      maxAsyncRequests: 30,
+      maxInitialRequests: 30,
+      enforceSizeThreshold: 50000,
+      cacheGroups: {
+        defaultVendors: {
+          test: /[\\/]node_modules[\\/]/,
+          priority: -10,
+          reuseExistingChunk: true,
+        },
+        default: {
+          minChunks: 2,
+          priority: -20,
+          reuseExistingChunk: true,
+        },
+      },
+    },
+  },
+}
+```
+
+2. CleanWebpackPlugin
+
+现已改为使用 output.clean 进行配置：
+
+```js
+module.exports = {
+  output: {
+    filename: '[name].bundle.js',
+    path: path.resolve(\_\_dirname, 'dist'),
+    clean: true,
+  },
+};
+```
+
+## mode
+
+在 Webpack v4 中引入了 mode 的配置，设置 mode 后可以自动开启 webpack 内置的函数，达到在相应环境下的优化，实现零配置。
+Mode ⽤来指定当前的构建环境是：production、development、none，默认值为 production。
+
+| 选项        | 描述                                                                                                                                                                                           |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| development | 将 DefinePlugin 中 process.env.NODE_ENV 的值设置为 development。 开启 NamedChunksPlugin 和 NamedModulesPlugin。                                                                                |
+| production  | 会将 DefinePlugin 中 process.env.NODE_ENV 的值设置为 production。 开启 FlagDependencyUsagePlugin，FlagIncludedChunksPlugin，ModuleConcatenationPlugin，NoEmitOnErrorsPlugin 和 TerserPlugin 。 |
+| none        | 不使用任何默认优化选项                                                                                                                                                                         |
+
+# 配置示例
+
+Webpack 默认的配置文件是 webpack.config.js，且可以在命令行通过 webpack --config 指定配置文件。
+
+```js
+module.exports = {
+  entry: './src/index.js',    // 1.打包的入口文件，默认入口文件为 ./src/index.js
+  // output: './dist/main.js',
+  output: {                   // 2.打包的输出，默认输出文件为 ./dist/main.js
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'bundle.js'
+  },
+  mode: 'production',         // 3.环境模式
+  module: {
+    rules: [                  // 4.loaders 的配置
+      { test: /\.txt$/, use: 'raw-loader' }
+    ]
+  },
+  plugins: [                  // 5.plugins 的配置
+    new HtmlWebpackPlugin({
+      template: './src/index.html’
+    })
+  ]
+};
+```
+
+使用 npm script 运行 webpack 即可。
+
+```js
+{
+    "name": "app",
+    "version": "1.0.0",
+    "main": "index.js",
+    "scripts": {
+        "build": "webpack"
+    }
+}
+```
