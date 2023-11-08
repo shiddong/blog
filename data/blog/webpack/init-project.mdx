@@ -1,0 +1,233 @@
+---
+title: 开始一个 Webpack 新项目
+date: '2023-03-18'
+tags: ['webpack']
+draft: false
+summary: Webpack 是一个现代 JavaScript 应用程序的静态模块打包工具。当 Webpack 处理应用程序时，它会将一切资源都看作是模块，不管是代码资源如 JS、CSS 等，还是非代码资源如图片、字体等，这些模块之间是会存在依赖关系的。从入口开始，它会递归地构建一个依赖关系图，其中包含应用程序所需的每个模块，然后将这些模块打包成一个或多个bundle。在 Webpack 中，entry、output、loader、plugins 和 mode 等配置项决定了如何构建依赖关系图。
+---
+
+# 环境安装
+
+## 安装 Node.js 依赖
+
+首先确保安装了正确版本的 Node.js，因为 Webpack 的运行需要依赖 Node.js。 Webpack v5 要求 Node.js 的版本在 10.13.0(LTS) 以上。
+
+这里使用 [nvm](https://github.com/nvm-sh/nvm) 对 node 的版本进行管理。其具体的安装、配置方式见 [nvm 的文档](https://github.com/nvm-sh/nvm#installing-and-updating)。
+
+```sh
+# 安装 nvm ( https://github.com/nvm-sh/nvm)，以下两种方法均可以
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
+# wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
+```
+
+安装最近的 Node.js LTS 版本，可以通过 `nvm ls-remote --lts` 查看所有的 LTS 版本。
+
+```sh
+# 安装 NodeJS 与 NPM, Node.js Latest LTS: Hydrogen
+nvm install v18.18.2
+
+# 检查 Node.js 与 NPM 的版本
+node -v
+npm -v
+```
+
+## 安装 webpack 与 webpack-cli
+
+1. 创建一个前端项目并初始化
+
+```sh
+# 项目名为 init-project，仅用于实验
+mkdir init-project
+cd init-project
+npm init -y
+```
+
+2. 安装 webpack 与 webpack-cli
+
+```sh
+# 安装到 dev dependencies
+npm install webpack webpack-cli --save-dev
+```
+
+检查安装后的版本。
+
+我的系统是 macOS 的，显示方式可能不同于 Windows，在 Packages 中可以看到已安装的 webpack 的版本为 5.89.0.
+
+```
+% ./node_modules/.bin/webpack -v
+
+  System:
+    OS: macOS 14.0
+    CPU: (10) arm64 Apple M1 Pro
+    Memory: 33.64 MB / 16.00 GB
+  Binaries:
+    Node: 18.18.2 - ~/.nvm/versions/node/v18.18.2/bin/node
+    Yarn: 1.22.19 - ~/Library/pnpm/yarn
+    npm: 9.8.1 - ~/.nvm/versions/node/v18.18.2/bin/npm
+  Browsers:
+    Chrome: 118.0.5993.117
+    Edge: 119.0.2151.46
+    Safari: 17.0
+  Packages:
+    @webpack-cli/generators: ^3.0.7 => 3.0.7
+    css-loader: ^6.8.1 => 6.8.1
+    html-webpack-plugin: ^5.5.3 => 5.5.3
+    postcss-loader: ^7.3.3 => 7.3.3
+    sass-loader: ^13.3.2 => 13.3.2
+    style-loader: ^3.3.3 => 3.3.3
+    ts-loader: ^9.5.0 => 9.5.0
+    webpack: ^5.89.0 => 5.89.0
+    webpack-cli: ^5.1.4 => 5.1.4
+    webpack-dev-server: ^4.15.1 => 4.15.1
+    workbox-webpack-plugin: ^7.0.0 => 7.0.0
+```
+
+# 设置一个 Webpack 新项目
+
+我们可以在当前的项目下创建一个 Webpack 的配置文件 webpack.config.js 进行初始化配置。
+但由于 Webpack 有大量的配置项，我们可以直接使用 `webpack init` 快速初始化一个 Webpack 的配置文件。
+在创建的过程中会通过回答问题的方式自定义配置。
+
+```sh
+$ ./node_modules/.bin/webpack init
+
+[webpack-cli] For using this command you need to install: '@webpack-cli/generators' package.
+[webpack-cli] Would you like to install '@webpack-cli/generators' package? (That will run 'npm install -D @webpack-cli/generators') (Y/n) Y
+
+# 回答问题
+? Which of the following JS solutions do you want to use? Typescript
+? Do you want to use webpack-dev-server? Yes
+? Do you want to simplify the creation of HTML files for your bundle? Yes
+? Do you want to add PWA support? Yes
+? Which of the following CSS solutions do you want to use? SASS
+? Will you be using CSS styles along with SASS in your project? Yes
+? Will you be using PostCSS in your project? Yes
+? Do you want to extract CSS for every file? Yes
+? Do you like to install prettier to format generated configuration? Yes
+? Pick a package manager: pnpm
+[webpack-cli] ℹ INFO  Initialising project...
+ conflict package.json
+? Overwrite package.json? overwrite
+    force package.json
+   create src/index.ts
+   create README.md
+   create index.html
+   create webpack.config.js
+   create tsconfig.json
+   create postcss.config.js
+
+# ...
+
+devDependencies:
++ @webpack-cli/generators 3.0.7
++ autoprefixer 10.4.16
++ css-loader 6.8.1
++ html-webpack-plugin 5.5.3
++ mini-css-extract-plugin 2.7.6
++ postcss 8.4.31
++ postcss-loader 7.3.3
++ prettier 3.0.3
++ sass 1.69.5
++ sass-loader 13.3.2
++ style-loader 3.3.3
++ ts-loader 9.5.0
++ typescript 5.2.2
++ webpack 5.89.0
++ webpack-cli 5.1.4
++ webpack-dev-server 4.15.1
++ workbox-webpack-plugin 7.0.0
+
+Done in 14.6s
+[webpack-cli] ⚠ Generated configuration may not be properly formatted as prettier is not installed.
+[webpack-cli] Project has been initialised with webpack!
+```
+
+默认生成的配置文件形式如下。
+
+```js
+// Generated using webpack-cli https://github.com/webpack/webpack-cli
+
+const path = require('path')
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const WorkboxWebpackPlugin = require('workbox-webpack-plugin')
+
+const isProduction = process.env.NODE_ENV == 'production'
+
+const stylesHandler = MiniCssExtractPlugin.loader
+
+const config = {
+  entry: './src/index.ts',
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+  },
+  devServer: {
+    open: true,
+    host: 'localhost',
+  },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: 'index.html',
+    }),
+
+    new MiniCssExtractPlugin(),
+
+    // Add your plugins here
+    // Learn more about plugins from https://webpack.js.org/configuration/plugins/
+  ],
+  module: {
+    rules: [
+      {
+        test: /\.(ts|tsx)$/i,
+        loader: 'ts-loader',
+        exclude: ['/node_modules/'],
+      },
+      {
+        test: /\.s[ac]ss$/i,
+        use: [stylesHandler, 'css-loader', 'postcss-loader', 'sass-loader'],
+      },
+      {
+        test: /\.css$/i,
+        use: [stylesHandler, 'css-loader', 'postcss-loader'],
+      },
+      {
+        test: /\.(eot|svg|ttf|woff|woff2|png|jpg|gif)$/i,
+        type: 'asset',
+      },
+
+      // Add your rules for custom modules here
+      // Learn more about loaders from https://webpack.js.org/loaders/
+    ],
+  },
+  resolve: {
+    extensions: ['.tsx', '.ts', '.jsx', '.js', '...'],
+  },
+}
+
+module.exports = () => {
+  if (isProduction) {
+    config.mode = 'production'
+
+    config.plugins.push(new WorkboxWebpackPlugin.GenerateSW())
+  } else {
+    config.mode = 'development'
+  }
+  return config
+}
+```
+
+同时根据创建过程中的不同回答也产生了其他一系列相应的配置文件，如 tsconfig.js, postcss.config.js, index.html 等。
+
+```sh
+.
+├── README.md
+├── index.html
+├── package-lock.json
+├── package.json
+├── pnpm-lock.yaml
+├── postcss.config.js
+├── src
+  └── index.js
+├── tsconfig.json
+└── webpack.config.js
+```

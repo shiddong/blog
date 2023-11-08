@@ -3,10 +3,12 @@ title: Webpack 的基本概念
 date: '2023-03-17'
 tags: ['webpack']
 draft: false
-summary: Webpack 是一个现代 Javascript 应用程序的静态模块打包器。当 Webpack 处理应用程序时，它会将一切资源都看作是模块，不管是代码资源如 JS、CSS 等，还是非代码资源如图片、字体等，这些模块之间是会存在依赖关系的。它会递归地构建一个依赖关系图，其中包含应用程序需要的每个模块，然后将所有这些模块打包成一个或多个bundle。在 Webpack 中，entry、output、loader、plugins 和 mode 等配置项决定了如何构建依赖关系图。
+summary: Webpack 是一个现代 JavaScript 应用程序的静态模块打包工具。当 Webpack 处理应用程序时，它会将一切资源都看作是模块，不管是代码资源如 JS、CSS 等，还是非代码资源如图片、字体等，这些模块之间是会存在依赖关系的。从入口开始，它会递归地构建一个依赖关系图，其中包含应用程序所需的每个模块，然后将这些模块打包成一个或多个bundle。在 Webpack 中，entry、output、loader、plugins 和 mode 等配置项决定了如何构建依赖关系图。
 ---
 
-Webpack 是一个现代 Javascript 应用程序的静态模块打包器。当 Webpack 处理应用程序时，它会将一切资源都看作是模块，不管是代码资源如 JS、CSS 等，还是非代码资源如图片、字体等，这些模块之间是会存在依赖关系的。它会递归地构建一个依赖关系图，其中包含应用程序需要的每个模块，然后将所有这些模块打包成一个或多个bundle。
+Webpack 是一个现代 JavaScript 应用程序的静态模块打包工具。
+当 Webpack 处理应用程序时，它会将一切资源都看作是模块，不管是代码资源如 JS、CSS 等，还是非代码资源如图片、字体等，这些模块之间是会存在依赖关系的。
+从入口开始，它会递归地构建一个依赖关系图，其中包含应用程序所需的每个模块，然后将这些模块打包成一个或多个bundle。
 
 ![webpack-modules](/static/images/blog/webpack/webpack-modules.png)
 
@@ -18,7 +20,8 @@ Webpack 是一个现代 Javascript 应用程序的静态模块打包器。当 We
 
 Webpack 是根据入口文件找到它的所有依赖，而依赖又会有新的依赖，从而不断的加入到依赖关系图中。
 
-在我们常见的项目中，如果是单页应用，那么入口一般只有一个；如果是多个页面的项目，那么经常是一个页面会对应一个构建入口，即具有多个入口。在 Webpack 的配置文件中使用 entry 用来指定打包入口，支持两种配置方式：单入口、多入口。
+在我们常见的项目中，如果是单页应用，那么入口一般只有一个；如果是多个页面的项目，那么经常是一个页面会对应一个构建入口，即具有多个入口。
+在 Webpack 的配置文件中使用 entry 用来指定打包入口，支持两种配置方式：单入口、多入口。
 
 ### 单入口
 
@@ -154,7 +157,7 @@ module.exports = {
 | [HtmlWebpackPlugin](https://webpack.js.org/plugins/html-webpack-plugin) | 创建 html 文件去承载输出的 bundle，一个页面对应一个 HtmlWebpackPlugin，多个页面时需要在 plugins 数组中添加多个配置 |
 | [TerserPlugin](https://webpack.js.org/plugins/terser-webpack-plugin/)   | JS 文件压缩                                                                                                        |
 
-### 已废弃的著名 plugin
+### 已废弃的著名 plugins
 
 1. CommonsChunkPlugin
 
@@ -217,6 +220,9 @@ Mode ⽤来指定当前的构建环境是：production、development、none，�
 # 配置示例
 
 Webpack 默认的配置文件是 webpack.config.js，且可以在命令行通过 webpack --config 指定配置文件。
+
+从 v4.0.0 开始，由于引入了 mode 可以开启默认的配置，Webpack 可以不用再引入一个配置文件来打包项目。
+然而，Webpack 会假定项目的入口起点为 src/index.js，然后会在 dist/main.js 输出结果，并且在生产环境开启压缩和优化，如果跟你的项目不符合，大概率还是要自定义配置的。
 
 ```js
 module.exports = {
