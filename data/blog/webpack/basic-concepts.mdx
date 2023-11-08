@@ -83,13 +83,13 @@ module.exports = {
 
 ## loaders
 
-其实，Webpack 原生只支持 JS 和 JSON 两种文件类型，而对于其他类型的文件，诸如 jsx/tsx 等语法糖、css(包括 less, sass 等)、图片、字体，Webpack 并不知道它们是什么。此时，需要通过 loaders 去支持其它文件类型，把它们转换成有效的模块，Webpack 在解析时才可以将它们添加到依赖关系图中。
+其实，Webpack 原生只支持 JS 和 JSON 两种文件类型，而对于其他类型的文件，诸如 jsx/tsx 等语法糖、css(包括 less, sass 等)、图片、字体等文件，Webpack 并不知道它们是什么。此时，需要通过 loaders 去支持 Webpack 处理其它文件类型，把它们转换成有效的模块，Webpack 在解析时才可以将它们添加到依赖关系图中。
 
 Loader 本身是一个函数，接受源文件作为参数，返回转换的结果。
 
 ### 使用方式
 
-在 Webpack 配置文件中，loaders 的位置是放在 module.rules 数组中，其中 test 指定匹配规则，use 指定使用的 loader 名称。
+在 Webpack 配置文件中，loaders 的位置是放在 module.rules 数组中，其中 `test` 指定文件的匹配规则，`use` 指定使用的 loader 名称。
 
 ```js
 module.exports = {

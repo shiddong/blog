@@ -1,0 +1,232 @@
+---
+title: webpack 的基本资源解析
+date: '2023-03-20'
+tags: ['webpack']
+draft: false
+summary: 介绍 webpack 中如何对基本的资源进行解析，比如 ES6+、React JSX、CSS、图片与字体等资源文件。
+---
+
+# From Scratch
+
+现在，我们从零开始为每种资源文件使用针对性的 loader 进行处理，来看看资源解析的细节。
+
+我们新建了一个项目 process-resources，按照这里提供的[环境安装](/blog/webpack/init-project#环境安装)方式搭建好初始化环境。
+
+在项目根目录下创建一个 webpack 的配置文件 `webpack.config.js`。
+
+```js
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js', // 默认是 main.js
+  },
+}
+```
+
+并在 package.json 文件的 `scripts` 中添加脚本，后续执行 `npm run start` 即可测试构建结果。
+
+```json
+{
+  "scripts": {
+    "start": "webpack"
+  }
+}
+```
+
+# 资源解析
+
+## ES6+
+
+webpack 原生支持 JS 的解析，但对于 ES6 的语法特性降级需要依赖到 babel-loader。
+
+而 babel-loader 是依赖 babel 的，所以需要安装 `babel` 与 `babel-loader`，并且为 babel 添加配置文件，其配置文件是 .babelrc，
+
+1. 先安装依赖。
+
+```sh
+npm i @babel/core babel-loader -D
+
+npm i @babel/preset-env -D
+```
+
+babel 有两个比较重要的概念，即 presets 和 plugins，可以理解为一个 plugin 对应一个功能，一个 presets 对应一系列 plugins 的集合。
+
+2. 添加 babel 的配置文件 .babelrc，如下，
+
+```json
+{
+  "presets": [
+    "@babel/preset-env" // es6 相关的 env
+  ],
+  "plugins": [
+    // "@babel/proposal-class-properties"
+  ]
+}
+```
+
+3. 修改 webpack 的配置文件配置如下，
+
+```js
+const path = require('path')
+module.exports = {
+  // ...
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: 'babel-loader',
+      },
+    ],
+  },
+}
+```
+
+## React JSX
+
+安装 React 相关的依赖，
+
+```sh
+npm i @babel/preset-react -D
+```
+
+增加 React 的 babel presets 配置，
+
+```json
+{
+  "presets": [
+    "@babel/preset-env", // es6 相关的 env
+    "@babel/preset-react"
+  ],
+  "plugins": [
+    // "@babel/proposal-class-properties"
+  ]
+}
+```
+
+## CSS （less/sass/stylus）
+
+解析 CSS 文件需要使用 css-loader，它会加载 .css 文件，并转换成 commonjs 对象，插入到 JS 中。
+使用 style-loader 将样式通过 `<style>` 便签插入到 head 中。
+
+其中，要注意 loader 是链式调用的，执行顺序是从右到左。
+
+```js
+const path = require('path')
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, 'dist'),
+  },
+  module: {
+    rules: [
+      {
+        test: /\.css$/,
+        use: [
+          // loader 是链式调用的，执行顺序是从右到左
+          'style-loader',
+          'css-loader',
+        ],
+      },
+    ],
+  },
+}
+```
+
+实际开发中，我们会用到 less 或 sass 等 CSS 预处理器，其解析同样需要用到对应的 loader。按照 loader 的执行顺讯，其 loader 应该放在 css-loader 之后，
+
+- less-loader
+- sass-loader
+- stylus- loader
+
+示例：less-loader 用于将 less 文件转换成 css
+
+安装依赖，
+
+```sh
+npm i less less-loader -D
+```
+
+更新 webpack 配置文件，
+
+```js
+const path = require('path')
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, 'dist'),
+  },
+  module: {
+    rules: [
+      {
+        test: /\.less$/,
+        use: [
+          'style-loader', // 将 JS 字符串生成为 style 节点
+          'css-loader', // 将 CSS 转化成 CommonJS 模块
+          'less-loader', // 将 less 编译成 CSS
+        ],
+      },
+    ],
+  },
+}
+```
+
+## 图片与字体等资源文件
+
+通过 file-loader 可以处理文件，只需要匹配图片资源的后缀即可。
+
+```js
+const path = require('path')
+
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, 'dist'),
+  },
+  module: {
+    rules: [
+      {
+        test: /\.(png|svg|jpg|gif)$/,
+        use: ['file-loader'],
+      },
+    ],
+  },
+}
+```
+
+file-loader 也可以处理字体，
+
+```js
+module: {
+  rules: [
+    {
+      test: /\.(woff|woff2|eot|ttf|otf)$/,
+      use: ['file-loader'],
+    },
+  ]
+}
+```
+
+另外，使用 url-loader 也可以处理图片和字体文件，并且可以设置较小的资源自动 base64 转换。
+
+url-loader 内部也是基于 file-loader 的。
+
+```js
+module: {
+  rules: [
+    {
+      test: /\.(png|svg|jpg|gif)$/,
+      use: [
+        {
+          loader: 'url-loader',
+          options: {
+            limit: 10240, // 10k，单位：字节
+          },
+        },
+      ],
+    },
+  ]
+}
+```
