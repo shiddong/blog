@@ -6,6 +6,10 @@ draft: false
 summary: 介绍 webpack 中如何对基本的资源进行解析，比如 ES6+、React JSX、CSS、图片与字体等资源文件。
 ---
 
+webpack 原生只支持 JS 和 JSON 两种文件类型，而对于其他类型的文件，诸如 jsx/tsx 等语法糖、css (包括 less, sass, stylus 等)、图片、字体等文件，webpack 并不知道它们是什么。
+
+我们使用 loaders 处理其它文件类型，把它们转换成有效的模块，可以将文件从不同的语言，比如 TypeScript，转换为 JavaScript；或者将内联图像转换为 data URL 等。
+
 # From Scratch
 
 现在，我们从零开始为每种资源文件使用针对性的 loader 进行处理，来看看资源解析的细节。
@@ -20,6 +24,7 @@ module.exports = {
   output: {
     filename: 'bundle.js', // 默认是 main.js
   },
+  mode: 'development',
 }
 ```
 
@@ -37,11 +42,13 @@ module.exports = {
 
 ## ES6+
 
-webpack 原生支持 JS 的解析，但对于 ES6 的语法特性降级需要依赖到 babel-loader。
+我们在前端项目中使用的一般是 ES6+ 语法，而在浏览器中不一定能够支持这些语法特性，比如 Class, Promise 等，可以通过 [caniuse](https://caniuse.com) 查看语法特性的兼容性。
 
-而 babel-loader 是依赖 babel 的，所以需要安装 `babel` 与 `babel-loader`，并且为 babel 添加配置文件，其配置文件是 .babelrc，
+webpack 原生支持 JS 的解析，但对于 ES6+ 的语法特性需要降级，输出为 ES5 的代码。而降级需要依赖到 babel-loader。
 
-1. 先安装依赖。
+babel-loader 是依赖 babel 的，所以需要安装 babel 与 babel-loader，并且需要为 babel 添加配置文件，其配置文件是 .babelrc。
+
+1. 先安装依赖
 
 ```sh
 npm i @babel/core babel-loader -D
@@ -49,9 +56,9 @@ npm i @babel/core babel-loader -D
 npm i @babel/preset-env -D
 ```
 
-babel 有两个比较重要的概念，即 presets 和 plugins，可以理解为一个 plugin 对应一个功能，一个 presets 对应一系列 plugins 的集合。
+2. 添加 babel 的配置文件 .babelrc
 
-2. 添加 babel 的配置文件 .babelrc，如下，
+babel 有两个比较重要的概念，即 presets 和 plugins，可以理解为一个 plugin 对应一个功能，一个 presets 对应一系列 plugins 的集合。
 
 ```json
 {
@@ -64,7 +71,7 @@ babel 有两个比较重要的概念，即 presets 和 plugins，可以理解为
 }
 ```
 
-3. 修改 webpack 的配置文件配置如下，
+3. 修改 webpack 的配置文件
 
 ```js
 const path = require('path')
@@ -83,13 +90,13 @@ module.exports = {
 
 ## React JSX
 
-安装 React 相关的依赖，
+1. 安装 React 相关的依赖
 
 ```sh
 npm i @babel/preset-react -D
 ```
 
-增加 React 的 babel presets 配置，
+2. 增加 React 的 babel presets 配置，
 
 ```json
 {
@@ -103,10 +110,89 @@ npm i @babel/preset-react -D
 }
 ```
 
+3. 修改 webpack 的配置文件，增加对 JSX 文件的解析
+
+```js
+const path = require('path')
+module.exports = {
+  // ...
+  module: {
+    rules: [
+      {
+        test: /\.(js|jsx)$/,
+        use: 'babel-loader',
+      },
+    ],
+  },
+}
+```
+
+## TypeScript
+
+如果你用到了 typescript，那么在项目中后缀为 .ts 或 .tsx 的文件需要使用 ts-loader 处理。
+
+1. 安装依赖
+
+不仅需要安装 typescript 和 ts-loader，还需要安装 react 和 react-dom 的类型文件。
+
+```sh
+npm i typescript ts-loader -D
+npm i @types/react @types/react-dom -D
+```
+
+2. 添加 ts 的配置文件 tsconfig.json
+
+```json
+{
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "noImplicitAny": true,
+    "module": "es6",
+    "target": "es5",
+    "jsx": "react", // 解决`无法使用 JSX，除非提供了 "--jsx" 标志问题`问题
+    "allowJs": true
+  },
+  "include": ["src"]
+}
+```
+
+3. 更新 webpack 的配置文件
+
+```js
+const path = require('path')
+
+module.exports = {
+  // ...
+  module: {
+    rules: [
+      // ...
+      {
+        test: /\.(ts|tsx)$/,
+        use: 'ts-loader',
+      },
+    ],
+  },
+}
+```
+
+如果使用了 TypeScrit，还需要为图片、字体等资源模块添加描述文件。
+
+```typescript
+// index.d.ts
+
+declare module '*.svg'
+declare module '*.png'
+declare module '*.jpg'
+declare module '*.jpeg'
+declare module '*.gif'
+declare module '*.bmp'
+declare module '*.tiff'
+```
+
 ## CSS （less/sass/stylus）
 
 解析 CSS 文件需要使用 css-loader，它会加载 .css 文件，并转换成 commonjs 对象，插入到 JS 中。
-使用 style-loader 将样式通过 `<style>` 便签插入到 head 中。
+使用 style-loader 将样式通过 `<style>` 标签插入到 head 中。
 
 其中，要注意 loader 是链式调用的，执行顺序是从右到左。
 
@@ -123,7 +209,7 @@ module.exports = {
       {
         test: /\.css$/,
         use: [
-          // loader 是链式调用的，执行顺序是从右到左
+          // loader 是链式调用的，执行顺序是从右到左 （从下到上）
           'style-loader',
           'css-loader',
         ],
@@ -133,24 +219,26 @@ module.exports = {
 }
 ```
 
-实际开发中，我们会用到 less 或 sass 等 CSS 预处理器，其解析同样需要用到对应的 loader。按照 loader 的执行顺讯，其 loader 应该放在 css-loader 之后，
+实际开发中，我们会用到 less 或 sass 等 CSS 预处理器，其解析同样需要用到对应的 loader。按照 loader 的执行顺序，其 loader 应该放在 css-loader 之后，
 
 - less-loader
 - sass-loader
 - stylus- loader
 
-示例：less-loader 用于将 less 文件转换成 css
+例如，less-loader 用于将 less 文件转换成 css
 
-安装依赖，
+1. 安装依赖
 
 ```sh
+npm i css-loader style-loader -D
 npm i less less-loader -D
 ```
 
-更新 webpack 配置文件，
+2. 更新 webpack 配置文件
 
 ```js
 const path = require('path')
+
 module.exports = {
   entry: './src/index.js',
   output: {
@@ -173,6 +261,14 @@ module.exports = {
 ```
 
 ## 图片与字体等资源文件
+
+### webpack 5 之前的处理方式
+
+处理资源文件主要用到下面这 3 个 loaders，
+
+- raw-loader 将文件导入为字符串
+- file-loader 将文件发送到输出目录
+- url-loader 支持将文件作为 data URI 内联到 bundle 中
 
 通过 file-loader 可以处理文件，只需要匹配图片资源的后缀即可。
 
@@ -230,3 +326,7 @@ module: {
   ]
 }
 ```
+
+### webpack 5 的处理方式
+
+[资源模块](https://webpack.docschina.org/guides/asset-modules#inlining-assets)

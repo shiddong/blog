@@ -9,12 +9,15 @@ summary: webpack 中除了需要解析资源外，还需要生成文件 hash、�
 # 文件监听
 
 ⽂件监听是在发现源代码发⽣变化时，⾃动重新构建出新的输出⽂件。
+
+## 配置方式
+
 webpack 开启监听模式，有两种⽅式：
 
 - 启动 webpack 命令时，带上 --watch 参数
 - 在配置 webpack.config.js 中设置 watch: true
 
-但是使用文件监听的这种方式的唯⼀缺陷：每次需要⼿动刷新浏览器。
+但是这种文件监听的方式有一个唯⼀的缺陷：每次需要⼿动刷新浏览器。
 
 ```json
 // package.json
@@ -33,7 +36,9 @@ webpack 开启监听模式，有两种⽅式：
 }
 ```
 
-**文件监听的原理**是轮询判断⽂件的最后编辑时间是否变化，某个⽂件发⽣了变化，并不会⽴刻告诉监听者，⽽是先缓存起来，等待 aggregateTimeout，在这个过程中如果有其他文件也发生了变化，会将被修改的文件列表一起进行构建。
+## 文件监听的原理
+
+文件监听的原理是轮询判断⽂件的最后编辑时间是否变化，某个⽂件发⽣了变化，并不会⽴刻告诉监听者，⽽是先缓存起来，等待 aggregateTimeout，在这个过程中如果有其他文件也发生了变化，会将被修改的文件列表一起进行构建。
 
 更新 webpack 的配置文件，
 
@@ -58,11 +63,11 @@ module.export = {
 
 因为开发中对文件监听时每次都需要⼿动刷新浏览器，效率是很低下的。
 
+## 使用 webpack-dev-server
+
 在 webpack 中有更好的方式，借助 webpack-dev-server (WDS)，在文件监听完成构建后，通过热更新的方式让浏览器自动更新页面中变化的部分（不会重新整体刷新页面），做到实时预览到修改后的内容。
 
 WDS 一个比较大的优势是构建的内容是放在内存中的，并不输出文件到本地磁盘上，因此它的构建速度是比较快的。
-
-WDS 的实现需要使用到 HotModuleReplacementPlugin 插件，
 
 ```json
 // package.json
@@ -81,7 +86,9 @@ WDS 的实现需要使用到 HotModuleReplacementPlugin 插件，
 }
 ```
 
-更新 webpack 的配置文件，
+WDS 的实现需要使用到 HotModuleReplacementPlugin 插件。
+
+现在，更新 webpack 的配置文件。
 
 ```javascript
 // webpack.config.js
@@ -93,6 +100,8 @@ module.exports = {
   },
 }
 ```
+
+## 使用 webpack-dev-middleware
 
 另一种方式是使用 webpack-dev-middleware （WDM），WDM 将 webpack 输出的⽂件传输给服务器，适合用更加灵活的定制场景。
 
@@ -116,15 +125,19 @@ app.listen(3000, function () {
 })
 ```
 
+## 热更新的原理
+
 热更新的原理解析可以看下图，
+
+![webpack-hmr](/static/images/blog/webpack/webpack-hmr.png)
+
+其中，
 
 - Webpack Compiler: 将 JS 编译成 Bundle
 - Bundle server: 提供⽂件在浏览器的访问
 - HMR Server: 将热更新的⽂件输出给 HMR Rumtime
 - HMR Rumtime: 会被注⼊到浏览器， 更新⽂件的变化
 - bundle.js: 构建输出的⽂件
-
-![webpack-hmr](/static/images/blog/webpack/webpack-hmr.png)
 
 # 文件指纹
 
