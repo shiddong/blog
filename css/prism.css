@@ -54,7 +54,7 @@
 }
 
 .prose :where(pre):not(:where([class~='not-prose'] *)) {
-  @apply rounded-t bg-slate-800  dark:bg-zinc-800;
+  @apply rounded-t bg-slate-800/100  dark:bg-zinc-800/80;
 }
 
 /* Token styles */
