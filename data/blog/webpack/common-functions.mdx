@@ -1,0 +1,309 @@
+---
+title: webpack 的常用功能
+date: '2023-03-22'
+tags: ['webpack']
+draft: false
+summary: webpack 中除了需要解析资源外，还需要生成文件 hash、压缩混淆代码等功能，同时在开发阶段还需要更便利的功能如文件监听、热更新等便于开发。
+---
+
+# 文件监听
+
+⽂件监听是在发现源代码发⽣变化时，⾃动重新构建出新的输出⽂件。
+webpack 开启监听模式，有两种⽅式：
+
+- 启动 webpack 命令时，带上 --watch 参数
+- 在配置 webpack.config.js 中设置 watch: true
+
+但是使用文件监听的这种方式的唯⼀缺陷：每次需要⼿动刷新浏览器。
+
+```json
+// package.json
+{
+  "name": "hello-webpack",
+  "version": "1.0.0",
+  "description": "Hello webpack",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack ",
+    "watch": "webpack --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
+```
+
+**文件监听的原理**是轮询判断⽂件的最后编辑时间是否变化，某个⽂件发⽣了变化，并不会⽴刻告诉监听者，⽽是先缓存起来，等待 aggregateTimeout，在这个过程中如果有其他文件也发生了变化，会将被修改的文件列表一起进行构建。
+
+更新 webpack 的配置文件，
+
+```javascript
+// webpack.config.js
+module.export = {
+  //默认 false，也就是不开启
+  watch: true,
+  //只有开启监听模式时，watchOptions才有意义
+  wathcOptions: {
+    //默认为空，不监听的文件或者文件夹，支持正则匹配
+    ignored: /node_modules/,
+    //监听到变化发生后会等300ms再去执行，默认300ms
+    aggregateTimeout: 300,
+    //判断文件是否发生变化是通过不停询问系统指定文件有没有变化实现的，默认每秒问1000次
+    poll: 1000,
+  },
+}
+```
+
+# 热更新
+
+因为开发中对文件监听时每次都需要⼿动刷新浏览器，效率是很低下的。
+
+在 webpack 中有更好的方式，借助 webpack-dev-server (WDS)，在文件监听完成构建后，通过热更新的方式让浏览器自动更新页面中变化的部分（不会重新整体刷新页面），做到实时预览到修改后的内容。
+
+WDS 一个比较大的优势是构建的内容是放在内存中的，并不输出文件到本地磁盘上，因此它的构建速度是比较快的。
+
+WDS 的实现需要使用到 HotModuleReplacementPlugin 插件，
+
+```json
+// package.json
+{
+  "name": "hello-webpack",
+  "version": "1.0.0",
+  "description": "Hello webpack",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack ",
+    "dev": "webpack-dev-server --open" // open 参数的作用是构建完成时打开新的浏览器窗口预览
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
+```
+
+更新 webpack 的配置文件，
+
+```javascript
+// webpack.config.js
+module.exports = {
+  plugins: [new webpack.HotModuleReplacementPlugin()],
+  devServer: {
+    contentBase: './dist',
+    hot: true, // 开启热更新
+  },
+}
+```
+
+另一种方式是使用 webpack-dev-middleware （WDM），WDM 将 webpack 输出的⽂件传输给服务器，适合用更加灵活的定制场景。
+
+这种方式需要再创建一个 Node Server，通常采用 koa 或 express，
+
+```javascript
+const express = require('express')
+const webpack = require('webpack')
+const webpackDevMiddleware = require('webpack-devmiddleware')
+
+const app = express()
+const config = require('./webpack.config.js')
+const compiler = webpack(config)
+app.use(
+  webpackDevMiddleware(compiler, {
+    publicPath: config.output.publicPath,
+  })
+)
+app.listen(3000, function () {
+  console.log('Example app listening on port 3000!\n')
+})
+```
+
+热更新的原理解析可以看下图，
+
+- Webpack Compiler: 将 JS 编译成 Bundle
+- Bundle server: 提供⽂件在浏览器的访问
+- HMR Server: 将热更新的⽂件输出给 HMR Rumtime
+- HMR Rumtime: 会被注⼊到浏览器， 更新⽂件的变化
+- bundle.js: 构建输出的⽂件
+
+![webpack-hmr](/static/images/blog/webpack/webpack-hmr.png)
+
+# 文件指纹
+
+大多数网站打包出来的文件名都有一串 hash，这串 hash 值就是所谓的文件指纹，它的作用主要是用来做版本管理（CDN、浏览器缓存）。
+
+![webpack-hmr](/static/images/blog/webpack/file-fingerprint.png)
+
+## ⽂件指纹如何⽣成
+
+- hash：和整个项⽬的构建相关，只要项⽬⽂件有修改，整个项⽬构建的 hash 值就会更改
+- chunkhash：和 webpack 打包的 chunk 有关，不同的 entry 会⽣成不同的 chunkhash 值
+- contenthash：根据⽂件内容来定义 hash ，⽂件内容不变，则 contenthash 不变
+
+## JS 的文件指纹设置
+
+设置 output 的 filename，使⽤ [chunkhash]
+
+```javascript
+module.exports = {
+  entry: {
+    app: './src/app.js',
+    search: './src/search.js',
+  },
+  output: {
+    filename: '[name][chunkhash:8].js',
+    path: __dirname + '/dist',
+  },
+}
+```
+
+## CSS 的⽂件指纹设置
+
+使用 MiniCssExtractPlugin 提取 CSS 为一个单独的文件时，它与 style-loader 的功能是冲突的，所以两者不能一起使用。
+
+设置 MiniCssExtractPlugin 的 filename， 使⽤ [contenthash]。
+
+```javascript
+module.exports = {
+  entry: {
+    app: './src/app.js',
+    search: './src/search.js'
+  },
+  output: {
+    filename: '[name][chunkhash:8].js',
+    path: __dirname + '/dist'
+  },
+  module: {
+    rules: [
+      {
+        test: /\.css$/,
+        use: [ // loader 是链式调用的，执行顺序是从右到左
+          MiniCssExtractPlugin.loader,
+          'css-loader'
+        ]
+      },
+      {
+        test: /\.less$/,
+        use: [
+          MiniCssExtractPlugin.loader,
+          'css-loader', // 将 CSS 转化成 CommonJS 模块
+          'less-loader' // 将 less 编译成 CSS
+        ]
+      }
+    ]
+  }，
+  plugins: [
+    new MiniCssExtractPlugin({
+      filename: `[name][contenthash:8].css`
+    });
+  ]
+};
+```
+
+## 图⽚的⽂件指纹设置
+
+设置 file-loader 的 name，使⽤ [hash]，其占位符的含义是
+
+| 占位符名称    | 含义                                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------------------ |
+| [ext]         | 资源后缀名                                                                                                   |
+| [name]        | 文件名称                                                                                                     |
+| [path]        | 文件的相对路径                                                                                               |
+| [folder]      | 文件所在的文件夹                                                                                             |
+| [contenthash] | 文件的内容 hash，默认是 md5 生成                                                                             |
+| [hash]        | 文件内容的 hash，默认是 md5 生成 这里 hash 的含义与前面代码的 hash 含义是有区别的，此处还是只文件内容的 hash |
+| [emoji]       | 一个随机的指代文件内容的 emoji                                                                               |
+
+```javascript
+const path = require('path')
+
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, 'dist'),
+  },
+  module: {
+    rules: [
+      {
+        test: /\.(png|svg|jpg|gif)$/,
+        use: [
+          {
+            loader: 'file-loader',
+            options: {
+              name: 'img/[name][hash:8].[ext] ',
+            },
+          },
+        ],
+      },
+    ],
+  },
+}
+```
+
+# 代码压缩
+
+代码压缩分为 3 部分：
+
+- JS 压缩
+- CSS 压缩
+- HTML 压缩
+
+## JS 文件压缩
+
+webpack 内置了 uglifyjs-webpack-plugin，在 mode = "production" 时默认开启，不需要额外单独配置。
+不过也可以手动安装该插件并添加配置，比如开启并行压缩等。
+
+## CSS 文件压缩
+
+使⽤ optimize-css-assets-webpack-plugin，同时使⽤ cssnano，
+
+```javascript
+module.exports = {
+  entry: {
+    app: './src/app.js',
+    search: './src/search.js',
+  },
+  output: {
+    filename: '[name][chunkhash:8].js',
+    path: __dirname + '/dist',
+  },
+  plugins: [
+    new OptimizeCSSAssetsPlugin({
+      assetNameRegExp: /\.css$/g,
+      cssProcessor: require('cssnano'),
+    }),
+  ],
+}
+```
+
+## HTML 文件压缩
+
+修改 html-webpack-plugin，设置压缩参数。
+
+```javascript
+module.exports = {
+  entry: {
+    app: './src/app.js',
+    search: './src/search.js'
+  },
+  output: {
+    filename: '[name][chunkhash:8].js',
+    path: __dirname  '/dist'
+  },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: path.join(__dirname, 'src/search.html'),
+      filename: 'search.html',
+      chunks: ['search'],
+      inject: true,
+      minify: {
+        html5: true,
+        collapseWhitespace: true,
+        preserveLineBreaks: false,
+        minifyCSS: true,
+        minifyJS: true,
+        removeComments: false
+      }
+    })
+  ]
+};
+```
