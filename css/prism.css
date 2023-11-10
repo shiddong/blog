@@ -60,7 +60,10 @@
 .prose :where(blockquote):not(:where([class~='not-prose'] *)) {
   font-weight: 400;
   border-radius: 4px;
-  @apply bg-gray-100/100 pb-1 pt-1 dark:bg-gray-800/80;
+  @apply bg-gray-100/100 pb-4 pl-4 pr-4 pt-4 dark:bg-gray-800/80;
+}
+.prose :where(blockquote):not(:where([class~='not-prose'] *)) p {
+  @apply mb-2 mt-2;
 }
 
 .prose :where(blockquote p:first-of-type):not(:where([class~='not-prose'] *))::before {

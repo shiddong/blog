@@ -214,11 +214,11 @@ module.exports = {
 在 webpack v4 中引入了 mode 的配置，设置 mode 后可以自动开启 webpack 内置的函数，达到在相应环境下的优化，实现零配置。
 Mode ⽤来指定当前的构建环境是：production、development、none，默认值为 production。
 
-| 选项        | 描述                                                                                                                                                                                           |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| development | 将 DefinePlugin 中 process.env.NODE_ENV 的值设置为 development。 开启 NamedChunksPlugin 和 NamedModulesPlugin。                                                                                |
-| production  | 会将 DefinePlugin 中 process.env.NODE_ENV 的值设置为 production。 开启 FlagDependencyUsagePlugin，FlagIncludedChunksPlugin，ModuleConcatenationPlugin，NoEmitOnErrorsPlugin 和 TerserPlugin 。 |
-| none        | 不使用任何默认优化选项                                                                                                                                                                         |
+| 选项        | 描述                                                                                                                                                                                                 |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| development | 将 DefinePlugin 中 process.env.NODE_ENV 的值设置为 development。<br /> 开启 NamedChunksPlugin 和 NamedModulesPlugin。                                                                                |
+| production  | 会将 DefinePlugin 中 process.env.NODE_ENV 的值设置为 production。<br /> 开启 FlagDependencyUsagePlugin，FlagIncludedChunksPlugin，ModuleConcatenationPlugin，NoEmitOnErrorsPlugin 和 TerserPlugin 。 |
+| none        | 不使用任何默认优化选项                                                                                                                                                                               |
 
 # 配置示例
 
