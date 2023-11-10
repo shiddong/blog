@@ -262,7 +262,9 @@ module.exports = {
 
 ## 图片与字体等资源文件
 
-### webpack 5 之前的处理方式
+> webpack 5 对图片、字体等资源的解析方式发生了变化，可以查看 [资源模块](https://webpack.docschina.org/guides/asset-modules#inlining-assets)
+>
+> 如果是使用 webpack 4，则可以参考下面的解析方式，当然在 webpack 5 中也支持该解析方式
 
 处理资源文件主要用到下面这 3 个 loaders，
 
@@ -326,7 +328,3 @@ module: {
   ]
 }
 ```
-
-### webpack 5 的处理方式
-
-[资源模块](https://webpack.docschina.org/guides/asset-modules#inlining-assets)
