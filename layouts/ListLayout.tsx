@@ -8,6 +8,7 @@ import type { Blog } from 'contentlayer/generated'
 import Link from '@/components/Link'
 import Tag from '@/components/Tag'
 import siteMetadata from '@/data/siteMetadata'
+import DraftTag from '@/components/DraftTag'
 
 interface PaginationProps {
   totalPages: number

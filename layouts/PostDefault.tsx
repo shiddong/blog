@@ -10,6 +10,7 @@ import Tag from '@/components/Tag'
 import siteMetadata from '@/data/siteMetadata'
 import ScrollTopAndComment from '@/components/ScrollTopAndComment'
 import TOC, { Toc } from '@/components/Toc'
+import DraftTag from '@/components/DraftTag'
 
 const editUrl = (path) => `${siteMetadata.siteRepo}/blob/main/data/${path}`
 const discussUrl = (path) =>
@@ -31,7 +32,7 @@ interface LayoutProps {
 }
 
 export default function PostLayout({ content, authorDetails, next, prev, children }: LayoutProps) {
-  const { filePath, path, slug, date, title, tags, toc } = content
+  const { filePath, path, slug, date, title, tags, toc, draft } = content
   const basePath = path.split('/')[0]
 
   return (
@@ -43,6 +44,7 @@ export default function PostLayout({ content, authorDetails, next, prev, childre
             <header className="pt-6 xl:pb-6">
               <div className="space-y-1 text-center">
                 <div>
+                  {draft && <DraftTag />}
                   <PageTitle>{title}</PageTitle>
                 </div>
 
