@@ -1,16 +1,16 @@
 ---
-title: 开始一个 Webpack 新项目
+title: 开始一个 webpack 新项目
 date: '2023-03-18'
 tags: ['webpack']
 draft: false
-summary: Webpack 是一个现代 JavaScript 应用程序的静态模块打包工具。当 Webpack 处理应用程序时，它会将一切资源都看作是模块，不管是代码资源如 JS、CSS 等，还是非代码资源如图片、字体等，这些模块之间是会存在依赖关系的。从入口开始，它会递归地构建一个依赖关系图，其中包含应用程序所需的每个模块，然后将这些模块打包成一个或多个bundle。在 Webpack 中，entry、output、loader、plugins 和 mode 等配置项决定了如何构建依赖关系图。
+summary: 介绍 webpack 的前置条件（webpack v5 要求 Node.js 的版本在 10.13.0(LTS) 以上），并介绍如何通过命令行快速开始一个 webpack 新项目。
 ---
 
 # 环境安装
 
 ## 安装 Node.js 依赖
 
-首先确保安装了正确版本的 Node.js，因为 Webpack 的运行需要依赖 Node.js。 Webpack v5 要求 Node.js 的版本在 10.13.0(LTS) 以上。
+首先确保安装了正确版本的 Node.js，因为 webpack 的运行需要依赖 Node.js。 webpack v5 要求 Node.js 的版本在 10.13.0(LTS) 以上。
 
 这里使用 [nvm](https://github.com/nvm-sh/nvm) 对 node 的版本进行管理。其具体的安装、配置方式见 [nvm 的文档](https://github.com/nvm-sh/nvm#installing-and-updating)。
 
@@ -82,10 +82,10 @@ npm install webpack webpack-cli --save-dev
     workbox-webpack-plugin: ^7.0.0 => 7.0.0
 ```
 
-# 设置一个 Webpack 新项目
+# 设置一个 webpack 新项目
 
-我们可以在当前的项目下创建一个 Webpack 的配置文件 webpack.config.js 进行初始化配置。
-但由于 Webpack 有大量的配置项，我们可以直接使用 `webpack init` 快速初始化一个 Webpack 的配置文件。
+我们可以在当前的项目下创建一个 webpack 的配置文件 webpack.config.js 进行初始化配置。
+但由于 webpack 有大量的配置项，我们可以直接使用 `webpack init` 快速初始化一个 webpack 的配置文件。
 在创建的过程中会通过回答问题的方式自定义配置。
 
 ```sh
