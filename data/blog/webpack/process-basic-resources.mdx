@@ -40,6 +40,21 @@ module.exports = {
 
 # 资源解析
 
+webpack 中解析不同类型的资源主要用到 loader，它的配置层级是在 module.rules 数组中。
+
+每一条Rule规则的常用属性如下，其中 + 表示 webpack 5 更新的部分。
+
+```diff
+  test: 匹配资源文件的正则表达式，上面的代码是匹配 png 图片
+- type: 设置资源模块类型 （支持 'javascript/auto' | 'javascript/dynamic' | 'javascript/esm' | 'json' | 'webassembly/experimental'）
++ type: 设置资源模块类型 （新增 asset 与 asset/* 资源模块类型）
+  use/loader: 设置加载器，类型可以是 String | Object | Array
++ generator: 设置资源生成信息
+    - filename: 设置资源文件输出名称和保存的路径（只适用于 type 属性为 asset 和 asset/resource 的场景）
+  include: 手动添加必须处理的文件（文件夹）
+  exclude: 手动屏蔽不需要处理的文件（文件夹）
+```
+
 ## ES6+
 
 我们在前端项目中使用的一般是 ES6+ 语法，而在浏览器中不一定能够支持这些语法特性，比如 Class, Promise 等，可以通过 [caniuse](https://caniuse.com) 查看语法特性的兼容性。
@@ -270,9 +285,9 @@ module.exports = {
 
 处理资源文件主要用到下面这 3 个 loaders，
 
-- raw-loader 将文件导入为字符串
-- file-loader 将文件发送到输出目录
-- url-loader 支持将文件作为 data URI 内联到 bundle 中
+- raw-loader 导入资源的源代码，如将 txt 文件导入为字符串
+- file-loader 将文件输出为一个单独的文件，并导出可访问的 URL
+- url-loader 将文件作为 data URI 内联到 bundle 中
 
 通过 file-loader 可以处理文件，只需要匹配图片资源的后缀即可。
 
