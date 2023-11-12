@@ -82,7 +82,98 @@ npm install webpack webpack-cli --save-dev
     workbox-webpack-plugin: ^7.0.0 => 7.0.0
 ```
 
-# 设置一个 webpack 新项目
+# 开始一个 webpack 新项目
+
+## 从零开始
+
+现在，我们从零开始搭建起一个 webpack 的空白项目。
+
+在项目根目录下创建一个 webpack 的配置文件 `webpack.config.js`。以下是基本配置：
+
+- mode: 在开发与测试 webpack 功能时，将其设置为 `development`，防止其自动添加默认配置。
+- HtmlWebpackPlugin: 使代码在一个 html 中正常运行，需要安装依赖 `html-webpack-plugin`。
+
+```js
+const path = require('path')
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+
+module.exports = {
+  entry: path.join(__dirname, './src/index.js'),
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'bundle.js', // 默认是 main.js
+  },
+  mode: 'development',
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: path.join(__dirname, 'index.html'),
+    }),
+  ],
+}
+```
+
+并在 package.json 文件的 `scripts` 中添加脚本。
+
+```json
+{
+  "scripts": {
+    "start": "webpack"
+  }
+}
+```
+
+执行测试之前，确保添加了 `src/index.js` 文件。
+
+执行 `npm run start` 即可测试构建结果，在浏览器中打开 `dist` 目录输出的 html 文件，可以看到结果。
+
+此时，还只能手动打开 `index.html`，而在开发或测试中需要一个本地的服务器直接实时预览到页面的结果。
+
+为了实现这个功能，我们先安装依赖 `webpack-dev-server`,
+
+```sh
+npm i webpack-dev-server -D
+```
+
+然后更新 webpack 的配置文件，
+
+```diff
+const path = require('path')
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+
+module.exports = {
+  entry: path.join(__dirname, './src/index.js'),
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'bundle.js', // 默认是 main.js
+  },
+  mode: 'development',
++ devServer: {
++   open: true // 自动打开浏览器
++ },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: path.join(__dirname, 'index.html'),
+    }),
+  ],
+}
+```
+
+并且修改启动脚本，使用 `webpack serve` 启动本地项目，等同于 `webpack-dev-server` 启动。
+
+> Usage: webpack serve|server|s [entries...] [options]
+>
+> Run the webpack dev server and watch for source file changes while serving.
+
+```diff
+{
+  "scripts": {
+    "start": "webpack",
++   "dev": "webpack serve",
+  }
+}
+```
+
+## 使用 webpack init 快速开始
 
 我们可以在当前的项目下创建一个 webpack 的配置文件 webpack.config.js 进行初始化配置。
 但由于 webpack 有大量的配置项，我们可以直接使用 `webpack init` 快速初始化一个 webpack 的配置文件。
