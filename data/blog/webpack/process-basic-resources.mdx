@@ -32,8 +32,6 @@ webpack 中解析不同类型的资源主要用到 loader，它的配置层级�
   exclude: 手动屏蔽不需要处理的文件（文件夹）
 ```
 
-> webpack 5 中对资源模块的处理方式见 [webpack 资源模块的概念](./asset-module)
-
 ## ES6+
 
 我们在前端项目中使用的一般是 ES6+ 语法，而在浏览器中不一定能够支持这些语法特性，比如 Class, Promise 等，可以通过 [caniuse](https://caniuse.com) 查看语法特性的兼容性。
@@ -262,6 +260,8 @@ module.exports = {
 >
 > "If you have rules defined for loading assets using raw-loader, url-loader, or file-loader, please use [Asset Modules](https://webpack.js.org/guides/asset-modules/) instead as they're going to be deprecated in near future."
 
+### 使用 loaders
+
 处理资源文件主要用到下面这 3 个 loaders，
 
 - raw-loader 导入资源的源代码，如将 txt 文件导入为字符串
@@ -323,4 +323,75 @@ module: {
     },
   ]
 }
+```
+
+### 使用 asset 字段配置
+
+资源模块是 webpack 5 新增的一种概念，具体表现是对图片、字体等资源的解析方式发生了变化，可以不再使用 loader 处理这些资源模块，取而代之的是使用一个 type 字段配置即可。
+
+webpack 5 实现了 4 种新的模块类型，通过 Rule 的 type 属性设置：
+
+- asset/resource: 输出一个单独的文件并导出 URL —— 取代 file-loader
+- asset/inline: 导出一个资源的 data URI —— 取代 url-loader
+- asset/source: 导出资源的源代码 —— 取代 raw-loader
+- asset: 在导出资源的 data URI 和输出一个单独的文件之间自动选择 —— 取代 url-loader，之前是在 url-loader 中通过配置资源体积限制实现
+
+**1. 自动处理文件**
+
+比如处理图片时，配置如下，
+
+```js
+module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.png$/,
+        type: 'asset/resource',
+      },
+    ],
+  },
+}
+```
+
+当图片较小的时候，我们更希望导出一个资源的 data URI 直接嵌入在代码中，而不是输出一个单独的文件。
+此时我们希望 webpack 能够根据图片大小自动适配，这种情况下就可以使用 `type:"asset"` 配置了。
+
+如果设置成 asset，则会根据图片的大小在 asset/inline 和 asset/resource 中自动选择。其默认的临界大小是 `8kb`，即
+
+- 大于 8kb 导出单独文件
+- 小于等于 8kb 则导出 dataURI
+
+当然，我们也可以通过 Rule 的 parser.dataUrlCondition.maxSize 进行设置，其单位是 Byte 字节。
+
+**2. 修改资源模块的输出路径与文件名**
+
+在 `output.assetModuleFilename` 中可以设置统一的输出文件名，但也可以在 Rule 的配置中通过 generator.filename 自定义。
+定义方式与 output.filename 类似，可以通过 [name] 原文件名、[hash] 哈希字符串、[ext] 扩展名等变量控制文件名。
+
+```diff
+const path = require('path');
+
+module.exports = {
+  entry: path.resolve(__dirname, './src/index.js'),
+  output: {
+    filename: 'main.js',
+    path: path.resolve(__dirname, 'dist'),
++   assetModuleFilename: 'images/[hash][ext][query]'
+  },
+  module: {
+    rules: [
+      {
+        test: /\.png/,
+        type: 'asset/resource'
+     },
+     {
+       test: /\.html/,
+       type: 'asset/resource',
++      generator: {
++        filename: 'static/[name]-[hash][ext][query]'
++      }
+     }
+    ]
+  },
+};
 ```
