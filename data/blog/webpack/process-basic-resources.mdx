@@ -7,55 +7,24 @@ summary: 介绍 webpack 中如何对基本的资源进行解析，比如 ES6+、
 ---
 
 webpack 原生只支持 JS 和 JSON 两种文件类型，而对于其他类型的文件，诸如 jsx/tsx 等语法糖、css (包括 less, sass, stylus 等)、图片、字体等文件，webpack 并不知道它们是什么。
+而且即使支持 JS，在用户的浏览器中能够支持的 ES 特性各不相同，也需要转换代码使其更加具有兼容性。
 
-我们使用 loaders 处理其它文件类型，把它们转换成有效的模块，可以将文件从不同的语言，比如 TypeScript，转换为 JavaScript；或者将内联图像转换为 data URL 等。
+我们使用 loaders 处理其它文件类型，把它们转换成有效的模块，可以将文件从不同的语言，比如 TypeScript 转换为 JavaScript；ES6+ 语法特性降级；或者将内联图像转换为 data URL 等。
 
-# From Scratch
+# 测试环境
 
-现在，我们从零开始为每种资源文件使用针对性的 loader 进行处理，来看看资源解析的细节。
-
-我们新建了一个项目 process-resources，按照这里提供的[环境安装](/blog/webpack/init-project#环境安装)方式搭建好初始化环境，
-但不需要通过 `webpack init` 快速初始化出 webpack 的配置文件，因为这里我们选择从零开始配置环境，从而建立对每种资源处理所需要的完整配置有个清晰的认识。
-
-在项目根目录下创建一个 webpack 的配置文件 `webpack.config.js`。
-
-```js
-const HtmlWebpackPlugin = require('html-webpack-plugin')
-
-module.exports = {
-  entry: './src/index.js',
-  output: {
-    filename: 'bundle.js', // 默认是 main.js
-  },
-  mode: 'development',
-  plugins: [
-    new HtmlWebpackPlugin({
-      template: 'index.html',
-    }),
-  ],
-}
-```
-
-并在 package.json 文件的 `scripts` 中添加脚本，后续执行 `npm run start` 即可测试构建结果。
-
-```json
-{
-  "scripts": {
-    "start": "webpack"
-  }
-}
-```
+基于[从零开始一个 webpack 新项目](./start-a-webpack-project#从零开始)的基础上，逐渐添加针对不同资源解析的配置，从而建立对每种资源处理所需要的完整配置过程有个清晰的认识。
 
 # 资源解析
 
-webpack 中解析不同类型的资源主要用到 loader，它的配置层级是在 module.rules 数组中。
+webpack 中解析不同类型的资源主要用到 loader，它的配置层级是在 module.rules 数组中，为处理一类或几类资源可以为其添加一条规则 Rule。
 
-每一条Rule规则的常用属性如下，其中 + 表示 webpack 5 更新的部分。
+每一条 Rule 规则的常用属性如下，其中 + 表示 webpack 5 更新的部分。
 
 ```diff
-  test: 匹配资源文件的正则表达式，上面的代码是匹配 png 图片
-- type: 设置资源模块类型 （支持 'javascript/auto' | 'javascript/dynamic' | 'javascript/esm' | 'json' | 'webassembly/experimental'）
-+ type: 设置资源模块类型 （新增 asset 与 asset/* 资源模块类型）
+  test: 匹配资源文件的正则表达式
+- type: 设置资源模块类型 （支持 javascript* | json | webassembly/experimental）
++ type: 设置资源模块类型 （新增 asset* 资源模块类型）
   use/loader: 设置加载器，类型可以是 String | Object | Array
 + generator: 设置资源生成信息
 +   - filename: 设置资源文件输出名称和保存的路径（只适用于 type 属性为 asset 和 asset/resource 的场景）
@@ -63,13 +32,15 @@ webpack 中解析不同类型的资源主要用到 loader，它的配置层级�
   exclude: 手动屏蔽不需要处理的文件（文件夹）
 ```
 
+> webpack 5 中对资源模块的处理方式见 [webpack 资源模块的概念](./asset-module)
+
 ## ES6+
 
 我们在前端项目中使用的一般是 ES6+ 语法，而在浏览器中不一定能够支持这些语法特性，比如 Class, Promise 等，可以通过 [caniuse](https://caniuse.com) 查看语法特性的兼容性。
 
-webpack 原生支持 JS 的解析，但对于 ES6+ 的语法特性需要降级，输出为 ES5 的代码。而降级需要依赖到 babel-loader。
+webpack 原生支持 JS 的解析，但对于 ES6+ 的语法特性需要降级，比如要输出为 ES5 的代码。则需要依赖 babel-loader。
 
-babel-loader 是依赖 babel 的，所以需要安装 babel 与 babel-loader，并且需要为 babel 添加配置文件，其配置文件是 .babelrc。
+babel-loader 是依赖 babel 的，所以需要安装 babel 与 babel-loader，并且需要为 babel 添加配置文件，其配置文件是 `.babelrc`。
 
 1. 先安装依赖
 
