@@ -365,8 +365,8 @@ module.exports = {
 
 **2. 修改资源模块的输出路径与文件名**
 
-在 `output.assetModuleFilename` 中可以设置统一的输出文件名，但也可以在 Rule 的配置中通过 generator.filename 自定义。
-定义方式与 output.filename 类似，可以通过 [name] 原文件名、[hash] 哈希字符串、[ext] 扩展名等变量控制文件名。
+在 `output.assetModuleFilename` 中可以设置统一的输出文件名，但也可以在 Rule 的配置中通过 `generator.filename` 自定义，其优先级更高。
+定义方式与 `output.filename` 类似，可以通过 [name] 原文件名、[hash] 哈希字符串、[ext] 扩展名等变量控制文件名。
 
 ```diff
 const path = require('path');
