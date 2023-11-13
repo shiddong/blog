@@ -218,15 +218,15 @@ module.exports = {
 
 设置 file-loader 的 name，使⽤ [hash]，其占位符的含义是
 
-| 占位符名称    | 含义                                                                                                         |
-| ------------- | ------------------------------------------------------------------------------------------------------------ |
-| [ext]         | 资源后缀名                                                                                                   |
-| [name]        | 文件名称                                                                                                     |
-| [path]        | 文件的相对路径                                                                                               |
-| [folder]      | 文件所在的文件夹                                                                                             |
-| [contenthash] | 文件的内容 hash，默认是 md5 生成                                                                             |
-| [hash]        | 文件内容的 hash，默认是 md5 生成 这里 hash 的含义与前面代码的 hash 含义是有区别的，此处还是只文件内容的 hash |
-| [emoji]       | 一个随机的指代文件内容的 emoji                                                                               |
+| 占位符名称    | 含义                                                                                                          |
+| ------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ext]         | 资源后缀名                                                                                                    |
+| [name]        | 文件名称                                                                                                      |
+| [path]        | 文件的相对路径                                                                                                |
+| [folder]      | 文件所在的文件夹                                                                                              |
+| [contenthash] | 文件的内容 hash，默认是 md5 生成                                                                              |
+| [hash]        | 文件内容的 hash，默认是 md5 生成，这里 hash 的含义与前面代码的 hash 含义是有区别的，此处还是指文件内容的 hash |
+| [emoji]       | 一个随机的指代文件内容的 emoji                                                                                |
 
 ```javascript
 const path = require('path')
@@ -270,7 +270,7 @@ webpack 内置了 uglifyjs-webpack-plugin，在 mode = "production" 时默认开
 
 ## CSS 文件压缩
 
-使⽤ optimize-css-assets-webpack-plugin，同时使⽤ cssnano，
+使⽤ [optimize-css-assets-webpack-plugin](https://github.com/NMFR/optimize-css-assets-webpack-plugin)，同时使⽤ cssnano，
 
 ```javascript
 module.exports = {
@@ -291,9 +291,11 @@ module.exports = {
 }
 ```
 
+> 在 webpack 5 中使用建议用 [css-minimizer-webpack-plugin](https://github.com/webpack-contrib/css-minimizer-webpack-plugin)
+
 ## HTML 文件压缩
 
-修改 html-webpack-plugin，设置压缩参数。
+修改 [html-webpack-plugin](https://github.com/jantimon/html-webpack-plugin)，设置压缩参数。
 
 ```javascript
 module.exports = {
@@ -307,9 +309,9 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: path.join(__dirname, 'src/search.html'),
-      filename: 'search.html',
-      chunks: ['search'],
+      template: path.join(__dirname, 'src/index.html'),
+      filename: 'index.html',
+      chunks: ['index'],
       inject: true,
       minify: {
         html5: true,
