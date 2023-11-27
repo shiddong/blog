@@ -1,12 +1,20 @@
 ---
 title: HTTP 缓存机制
-date: '2023-1-27'
+date: '2022-1-27'
 tags: ['http']
 draft: false
 summary: HTTP 的缓存机制，可以说这是前端工程师需要掌握的重要知识点之一，本文针对 HTTP 缓存整体的流程做一个详细的讲解。
 ---
 
-HTTP 缓存一般分为 2 种：强缓存与协商缓存。其主要作用是为了加快资源获取速度，提升用户体验，减少网络传输，缓解服务端的压力。
+Web 领域中的缓存常常涉及服务器端缓存和浏览器端的缓存，服务器缓存（如代理服务器缓存、Redis、CDN 等）可以减轻服务端压力同时提高响应速度，可有效提高第一次访问的加载速度；
+而浏览器缓存可以跳过请求重复的资源，大幅度提高第二次访问的加载速度。
+
+前端在资源加载时，合理利用 HTTP 协议的缓存机制可以有效加快资源加载速度，提升用户体验，并减少网络传输、缓解服务端的压力。这个过程不需要前端业务代码参与，一般有服务端控制和浏览器自动判断。
+
+服务器在 Http 返回的 header 中可能会带上 Expires、Cache-Control、Last-Modified、Etag 等字段，浏览器把返回的资源或数据缓存到本地。
+下次需要请求相同资源时，可以采取某些机制并通过这些字段来判断是直接从缓存中获取数据，还是重新发起请求。
+
+HTTP 缓存一般分为 2 种：强缓存与协商缓存。
 
 # 强缓存
 
@@ -21,9 +29,11 @@ HTTP 缓存一般分为 2 种：强缓存与协商缓存。其主要作用是为
 
 ## Expires
 
-Expires 的值是一个 HTTP 日期，在浏览器发起请求时，会根据系统时间和 Expires 的值进行比较，如果系统时间超过了 Expires 的值，缓存失效。
+Expires 的值是一个 HTTP 日期/时间，在浏览器发起请求时，会根据系统时间和 Expires 的值进行比较，如果系统时间超过了 Expires 的值，缓存失效。
 
-由于和系统时间进行比较，所以当系统时间和服务器时间不一致的时候，会有缓存有效期不准的问题，因此现在 Expires 的优先级在三个 Header 属性中是最低的。
+该时间是以客户端时间为准，通过将 Expires 的时间与客户端的时间进行比较，若在该时间之后，缓存过期，需要重新发起请求。对于不符合格式的日期、过去的日期，同样意味着已经过期。
+
+其缺陷是由于是和客户端时间进行比较，所以当客户端时间和服务器时间不一致的时候，会有缓存有效期不准的问题，因此现在 Expires 的优先级在这 3 个 Header 属性中是最低的。
 
 <Image src="/static/images/blog/http/expires.png" alt="Expires" width={600} height={500} />
 
@@ -31,12 +41,38 @@ Expires 的值是一个 HTTP 日期，在浏览器发起请求时，会根据系
 
 Cache-Control 是 HTTP/1.1 中新增的属性，在请求头和响应头中都可以使用，常用的属性值有：
 
-- max-age：单位是秒，缓存时间计算的方式是距离发起的时间的秒数，超过间隔的秒数缓存失效
-- no-cache：不使用强缓存，需要与服务器验证缓存是否新鲜
-- no-store：禁止使用缓存（包括协商缓存），每次都向服务器请求最新的资源
-- private：专用于个人的缓存，中间代理、CDN 等不能缓存此响应
-- public：响应可以被中间代理、CDN 等缓存
-- must-revalidate：在缓存过期前可以使用，过期后必须向服务器验证
+| Request        | Response               | Description                                                                              |
+| -------------- | ---------------------- | ---------------------------------------------------------------------------------------- |
+| max-age        | max-age                | 缓存的有效时间(单位秒)，超过这个时间缓存被认为过期                                       |
+| max-stale      | -                      |                                                                                          |
+| min-fresh      | -                      |                                                                                          |
+| -              | s-maxage               | 代理服务器缓存的有效时间(单位秒)，私有缓存会忽略它                                       |
+| no-cache       | no-cache               | 不使用强缓存，但可以被缓存，不过每次需要与服务器验证缓存是否新鲜（即是否过期）           |
+| no-store       | no-store               | 禁止使用缓存（包括协商缓存），不能被任何对象缓存，每次都需要向服务器请求最新的资源       |
+| no-transform   | no-transform           | 不得对资源进行转换或转变，代理服务器不能修改http头                                       |
+| only-if-cached | -                      | 客户端只接受已缓存的响应，并且不要向原始服务器检查是否有更新                             |
+| -              | must-revalidate        | 可以被用户和代理服务器缓存，在缓存过期前可以使用，一旦过期，需要校验缓存是否有效才能使用 |
+| -              | proxy-revalidate       | 仅能被代理服务器缓存，一旦过期，需要校验缓存是否有效才能使用                             |
+| -              | must-understand        |                                                                                          |
+| -              | private                | 只能用于单个用户的缓存，中间代理、CDN 等不能缓存此响应                                   |
+| -              | public                 | 可以被任何对象，如中间代理服务器、CDN、客户端等缓存                                      |
+| -              | immutable              | 资源未过期时，不需要发送验证请求就能直接使用                                             |
+| -              | stale-while-revalidate |                                                                                          |
+| stale-if-error | stale-if-error         |                                                                                          |
+
+> 所有的属性值及其说明见 [Cache-Control](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control)
+
+例如下图中，请求一张静态图片，通常希望代理服务器和客户端都缓存较长时间，可以设置为：`Cache-Control:public, max-age=31536000`。
+
+<Image
+  src="/static/images/blog/http/cache-control-image-example.jpeg"
+  alt="Cache-Control"
+  width={500}
+  height={600}
+/>
+
+需要注意的是当 Cache-Control 和 Expires 字段同时存在时，Cache-Control 的优先级更高。Expires 是一个时间戳，如果服务器和客户端的时间不一致，可能会有误差，因此只能做粗略的控制。
+而 Cache-Control 使用相对于请求的有效时长，还可以进行更复杂的缓存设置。
 
 ## Pragma
 
@@ -44,27 +80,89 @@ Pragma 只有一个属性值，就是 no-cache ，效果和 Cache-Control 中的
 
 # 协商缓存
 
-当浏览器的强缓存失效或请求头中设置了禁用强缓存，并且在请求头中设置了 If-Modified-Since 或者 If-None-Match 时，会将这两个属性值发送到服务端去验证是否命中协商缓存：
+当浏览器的强缓存失效或请求头中设置了禁用强缓存，则需要重新发起请求。服务器会根据请求头中设置的 If-Modified-Since 或者 If-None-Match 等属性字段验证是否命中协商缓存，即判断资源是否有更新：
 
-- 若命中协商缓存，会返回 304 状态码，加载浏览器缓存，并且响应头会设置 Last-Modified 或者 ETag 属性
-- 否则，会返回 200 状态码，从服务端获取最新内容
+- 若未更新，即命中协商缓存，会返回 304 状态码，body 为空，即 `Status Code: 304 Not Modified`，此时直接加载浏览器缓存
+- 否则，会返回 200 状态码，body 中为最新结果
 
 其中，Etag 的优先级高于 Last-Modified，若前后两次请求的 Etag 相同，则就不需要验证 Last-Modified 是否相同。因为 Etag 是资源文件的唯一标识，只要资源有改动，则两次的 Etag 值必定会不相同。
 
 ## Last-Modified/If-Modified-Since
 
-Last-Modified/If-Modified-Since 的值代表的是文件的最后修改时间，第一次请求服务端会把资源的最后修改时间放到 Last-Modified 响应头中，第二次发起请求的时候，请求头会带上上一次响应头中的 Last-Modified 的时间，并放到 If-Modified-Since 请求头属性中，服务端根据文件最后一次修改时间和 If-Modified-Since 的值进行比较，如果相等，返回 304，并加载浏览器缓存。
+Last-Modified/If-Modified-Since 的值代表的是文件的最后修改时间。
+每一次 HTTP 请求返回时，服务端在 header 中标明此资源最后更新的时间，格式为 `Last-Modified: Wed, 1 May 2019 06:00:00 GMT`。
+
+当下次请求相同资源，并且强制缓存已过期时，浏览器会自动在请求 header 带上这个时间。
+其中 Get 和 Head 请求使用 [If-Modified-Since](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since) 字段，
+其他请求使用 [If-Unmodified-Since](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Unmodified-Since) 字段。
+服务端会根据文件最后一次修改时间和 If-Modified-Since 的值进行比较，，来决定返回 200 还是 304。
 
 ## ETag/If-None-Match
 
-ETag/If-None-Match 的值是一串 hash 码，代表的是一个资源的标识符，当服务端的文件变化的时候，它的 hash 码会随之改变，通过请求头中的 If-None-Match 和当前文件的 hash 值进行比较，如果相等则表示命中协商缓存。
+通过请求头中的 If-None-Match 和当前文件的 hash 值进行比较，如果相等则表示命中协商缓存。
 
-ETag 又有强弱校验之分，如果 hash 码是以 "W/" 开头的一串字符串，说明此时协商缓存的校验是弱校验的，只有服务器上的文件差异（根据 ETag 计算方式来决定）达到能够触发 hash 值后缀变化的时候，才会真正地请求资源，否则返回 304 并加载浏览器缓存。
+ETag/If-None-Match 的值是一串 hash 码，代表的是一个资源的标识符，当服务端的文件变化的时候，它的 hash 码会随之改变。
+每一次 http 返回时，服务端在 header 中标明此资源的版本标识符，格式为 `ETag: "<etag_value>"`。
+当下次请求相同资源，并且强制缓存已过期时，浏览器会自动在请求 header 带上这个标识符，
+使用 [If-None-Match](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-None-Match)
+或 [If-Match](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Match) 字段。
+服务端根据标识符，判断返回内容和客户端缓存是否一致，来决定返回 200 还是 304。
 
-所以，ETag/If-None-Match 的出现主要解决了 Last-Modified/If-Modified-Since 的 2 个问题：
+这里没有明确指定生成 ETag 值的方法，服务端可以自己制定规则。
+并且 ETag 有强弱校验之分，如果 hash 码是以 "W/" 开头的一串字符串，说明此时协商缓存的校验是弱校验的，
+只有服务器上的文件差异（根据 ETag 计算方式来决定）达到能够触发 hash 值后缀变化的时候，才会真正地请求资源，否则返回 304 并加载浏览器缓存。
+
+如下图所示为 Last-Modified 与 ETag 的运行机制。
+
+<Image
+  src="/static/images/blog/http/last-modified-example.jpeg"
+  alt="last-modified-example"
+  width={600}
+  height={600}
+/>
+
+由上图可知，当 Last-Modified 和 Etag 字段同时存在时，Etag的优先级更高。
+
+ETag/If-None-Match 的出现主要解决了 Last-Modified/If-Modified-Since 的 2 个问题：
 
 - 若文件的修改频率在秒级以下，则 Last-Modified 的时间还是没有变化的，导致 Last-Modified/If-Modified-Since 会返回 304，使用原文件
 - 若文件被修改了，但是内容没有任何变化的时候，应该使用原文件，但 Last-Modified/If-Modified-Since 由于时间变化会返回 200，并发送新文件。
+
+# 禁用缓存
+
+缓存在业务场景下基本时必须的，那在某些情况下，比如调试时如何禁用 HTTP 缓存呢？这里有几种方式：
+
+- 右键点击浏览器的刷新按钮，会出现“清空缓存并重新加载”，此时的刷新是无缓存的
+
+<Image
+  src="/static/images/blog/http/remove-cache-hard-reload.png"
+  alt="hard-reload"
+  width={300}
+  height={200}
+/>
+
+- 更常见的调试方式是，在浏览器的开发者面板中 `Network` 中勾选 `Disable Cache`
+
+<Image
+  src="/static/images/blog/http/disable-cache-in-devtools.png"
+  alt="hard-reload"
+  width={600}
+  height={400}
+/>
+
+- 也可以在 HTML 文档的 \<head> 中加入以下代码
+
+```html
+<meta http-equiv="pragma" content="no-cache" />
+<meta http-equiv="cache-control" content="no-cache" />
+<meta http-equiv="expires" content="0" />
+```
+
+# 总结
+
+HTTP 缓存一般分为 2 种：强缓存与协商缓存。强缓存可以减少了一次 http 请求/响应的过程。协商缓存虽然不能减少请求，但可以节省返回的内容。
+
+通过合理配置 HTTP 的缓存逻辑，提高缓存命中率，可以有效优化加载速度。
 
 # 参考
 

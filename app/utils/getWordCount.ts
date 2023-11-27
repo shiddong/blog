@@ -16,7 +16,5 @@ export function getWordCount(str: string) {
   const en = getEnCount(str)
   const zh = getZhCount(str)
 
-  console.log(en, zh)
-
   return en + zh
 }
