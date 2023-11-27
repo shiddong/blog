@@ -28,10 +28,18 @@ interface LayoutProps {
   authorDetails: CoreContent<Authors>[]
   next?: { path: string; title: string }
   prev?: { path: string; title: string }
+  words?: number
   children: ReactNode
 }
 
-export default function PostLayout({ content, authorDetails, next, prev, children }: LayoutProps) {
+export default function PostLayout({
+  content,
+  authorDetails,
+  next,
+  prev,
+  words,
+  children,
+}: LayoutProps) {
   const { filePath, path, slug, date, title, tags, toc, draft } = content
   const basePath = path.split('/')[0]
 
@@ -54,7 +62,8 @@ export default function PostLayout({ content, authorDetails, next, prev, childre
                     <dd className="text-base font-medium leading-6 text-gray-500 dark:text-gray-400">
                       <time dateTime={date}>
                         {new Date(date).toLocaleDateString(siteMetadata.locale, postDateTemplate)}
-                      </time>
+                      </time>{' '}
+                      — {words} Words
                     </dd>
                   </div>
                 </dl>
@@ -152,6 +161,7 @@ const Sideber = ({ content, prev, next }: SidebarProps) => {
             </div>
           </div>
         )}
+
         {(next || prev) && (
           <div className="flex justify-between py-4 xl:block xl:space-y-8 xl:py-8">
             {prev && prev.path && (
