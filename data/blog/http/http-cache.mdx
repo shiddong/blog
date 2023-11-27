@@ -78,6 +78,8 @@ Cache-Control 是 HTTP/1.1 中新增的属性，在请求头和响应头中都�
 
 Pragma 只有一个属性值，就是 no-cache ，效果和 Cache-Control 中的 no-cache 一致，不使用强缓存，需要与服务器验证缓存是否新鲜，在 3 个头部属性中的优先级最高。
 
+> Pragam 是历史遗留物，虽然有些网站为了向下兼容还保留了这个字段，但它处于待废弃使用的状态。
+
 # 协商缓存
 
 当浏览器的强缓存失效或请求头中设置了禁用强缓存，则需要重新发起请求。服务器会根据请求头中设置的 If-Modified-Since 或者 If-None-Match 等属性字段验证是否命中协商缓存，即判断资源是否有更新：
@@ -112,7 +114,7 @@ ETag/If-None-Match 的值是一串 hash 码，代表的是一个资源的标识�
 并且 ETag 有强弱校验之分，如果 hash 码是以 "W/" 开头的一串字符串，说明此时协商缓存的校验是弱校验的，
 只有服务器上的文件差异（根据 ETag 计算方式来决定）达到能够触发 hash 值后缀变化的时候，才会真正地请求资源，否则返回 304 并加载浏览器缓存。
 
-如下图所示为 Last-Modified 与 ETag 的运行机制。
+借用下图描述 Last-Modified 与 ETag 的运行机制。
 
 <Image
   src="/static/images/blog/http/last-modified-example.jpeg"
@@ -122,6 +124,7 @@ ETag/If-None-Match 的值是一串 hash 码，代表的是一个资源的标识�
 />
 
 由上图可知，当 Last-Modified 和 Etag 字段同时存在时，Etag的优先级更高。
+其中 ETag 若判断不一致，则协商缓存未命中，而不是接着去判断 Last-Modified。可以理解为先判断是否有 ETag，有则采用 ETag 字段判断，否则采用 Last-Modified 字段判断。
 
 ETag/If-None-Match 的出现主要解决了 Last-Modified/If-Modified-Since 的 2 个问题：
 
