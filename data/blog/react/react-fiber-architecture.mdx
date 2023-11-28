@@ -6,7 +6,9 @@ draft: false
 summary: 介绍 React Fiber 架构，翻译自 @acdlite 的文章 React Fiber Architecture
 ---
 
-> 原文：https://github.com/acdlite/react-fiber-architecture
+> 英文原文：https://github.com/acdlite/react-fiber-architecture
+>
+> 原文写于 2016-10-19
 
 # 介绍
 
@@ -52,11 +54,11 @@ Fiber 引入了几个新颖的概念，光从代码上看可能很难理解。�
 
 ## 什么是 reconciliation
 
-**reconciliation**
+**_reconciliation_**
 
 &emsp;协调（reconciliation）是指 React 使用的算法，用于对比两个树形结构，以确定哪些部分需要被更改。
 
-**update**
+**_update_**
 
 &emsp;一个 React 应用中用于渲染的数据的更改。通常是 setState 的结果。最终导致重新渲染。
 
@@ -64,7 +66,7 @@ React API 的核心思想是，将更新视为导致整个应用重新渲染。�
 
 实际上，在每次更改时重新渲染整个应用程序只适用于最简单的应用程序；在实际的应用程序中，这在性能方面是无法承受的。React 有一些优化技巧，可以在保持良好性能的同时创造整个应用程序重新渲染的效果。其中大部分优化是**协调**过程的一部分。
 
-协调是虚拟 DOM 背后的算法。高级描述大致如下：当您渲染一个 React 应用程序时，会生成并保存一个描述应用程序的节点树。然后，将该树刷新到渲染环境中 - 例如，在浏览器应用程序中，它会被转换为一组 DOM 操作。当应用程序更新（通常通过 setState）时，会生成一个新的树。新树会与先前的树进行比较，计算出更新呈现的应用程序所需的操作。
+协调是虚拟 DOM 背后的算法。高级描述大致如下：当您渲染一个 React 应用程序时，会生成并保存一个描述应用程序的节点树。然后，将该树刷新到渲染环境中 - 例如，在浏览器应用程序中，它会被转换为一组 DOM 操作。当应用程序更新（通常通过 `setState`）时，会生成一个新的树。新树会与先前的树进行比较，计算出更新呈现的应用程序所需的操作。
 
 尽管 Fiber 是协调器的从头开始重写，但 React 文档中描述的高级算法基本相同。关键点包括：
 
@@ -91,13 +93,13 @@ Fiber 重新实现了协调器。尽管渲染器需要改变以支持（并利�
 
 ## 调度
 
-**scheduling**
+**_scheduling_**
 
 &emsp;确定何时执行任务的过程
 
-**work**
+**_work_**
 
-&emsp;必须执行的任何计算。work通常是更新（例如setState）的结果。
+&emsp;必须执行的任何计算。work通常是更新（例如 `setState`）的结果。
 
 React 的[设计原则](6)文档在这个主题上讲得非常好，我在这里引用一下它的原话：
 
@@ -146,17 +148,21 @@ v = f(d)
 
 因此，渲染 React 应用类似于调用一个包含对其他函数的调用的函数体，以此类推。当思考 fiber 时，这个类比很有用。
 
-计算机通常使用调用堆栈来跟踪程序的执行。当函数被执行时，会向堆栈中添加一个新的堆栈帧。该堆栈帧表示该函数执行的工作。
+计算机通常使用调用[堆栈](10)来跟踪程序的执行。当函数被执行时，会向堆栈中添加一个新的**堆栈帧**。该堆栈帧表示该函数执行的工作。
+
+[10]: https://en.wikipedia.org/wiki/Call_stack
 
 在处理 UI 时，问题在于如果一次执行了太多的工作，就会导致动画丢帧并变得不流畅。而且，如果某些工作被更近期的更新所取代，则其中一些工作可能是不必要的。这就是 UI 组件和函数之间比较失效的地方，因为组件具有比一般函数更具体的关注点。
 
-较新的浏览器（和 React Native）实现了 API，以帮助解决这个确切的问题：requestIdleCallback 调度一个低优先级函数，在闲置期间被调用，而 requestAnimationFrame 则在下一帧动画时调度一个高优先级函数。问题在于，为了使用这些 API，您需要一种将渲染工作分解为增量单元的方法。如果仅依赖于调用堆栈，它将继续执行工作，直到堆栈为空。
+较新的浏览器（和 React Native）实现了 API，以帮助解决这个确切的问题：`requestIdleCallback` 调度一个低优先级函数，在闲置期间被调用，而 `requestAnimationFrame` 则在下一帧动画时调度一个高优先级函数。问题在于，为了使用这些 API，您需要一种将渲染工作分解为增量单元的方法。如果仅依赖于调用堆栈，它将继续执行工作，直到堆栈为空。
 
 如果我们能够自定义调用堆栈的行为以优化 UI 渲染，是不是会很棒？如果我们能够随意中断调用堆栈并手动操作堆栈帧，是不是会很棒？
 
-这就是 React Fiber 的目的。Fiber 是针对 React 组件专门重新实现的堆栈。您可以将单个 fiber 视为虚拟堆栈帧。
+这就是 React Fiber 的目的。Fiber 是针对 React 组件专门重新实现的堆栈。您可以将单个 fiber 视为**虚拟堆栈帧**。
 
-重新实现堆栈的优点在于，可以将堆栈帧保留在内存中，并以任何您想要的方式（和时间）执行它们。这对于实现我们对调度的目标至关重要。
+重新实现堆栈的优点在于，可以[将堆栈帧保留在内存中](11)，并以任何您想要的方式（和时间）执行它们。这对于实现我们对调度的目标至关重要。
+
+[11]: https://www.facebook.com/groups/2003630259862046/permalink/2054053404819731/
 
 除了调度之外，手动处理堆栈帧还为并发和错误边界等功能提供了潜力。我们将在未来的部分中涵盖这些主题。
 
@@ -164,7 +170,7 @@ v = f(d)
 
 ## fiber 的结构
 
-注意：随着我们更具体地讨论实现细节，某些内容可能会发生变化。如果您发现任何错误或过时的信息，请提交 PR。
+_注意：随着我们更具体地讨论实现细节，某些内容可能会发生变化。如果您发现任何错误或过时的信息，请提交 PR。_
 
 具体而言，一个 fiber 是一个包含有关组件、其输入和输出的信息的 JavaScript 对象。
 
@@ -176,9 +182,9 @@ v = f(d)
 
 fiber 的type和key与 React 元素的作用相同。（实际上，当从元素创建 fiber 时，这两个字段直接复制过来。）
 
-fiber 的类型描述它对应的组件。对于复合组件，类型是函数或类组件本身。对于宿主组件（如 div、span 等），类型是一个字符串。
+fiber 的类型描述它对应的组件。对于复合组件，类型是函数或类组件本身。对于宿主组件（如 `div`、`span` 等），类型是一个字符串。
 
-从概念上讲，类型是正在被堆栈帧追踪执行的函数（如 v = f(d)）。
+从概念上讲，类型是正在被堆栈帧追踪执行的函数（如 `v = f(d)`）。
 
 与类型一起，键在协调期间用于确定是否可以重用 fiber。
 
@@ -186,7 +192,7 @@ fiber 的类型描述它对应的组件。对于复合组件，类型是函数�
 
 这些字段指向其他 fiber，描述 fiber 的递归树结构。
 
-child fiber 对应于组件的 render 方法返回的值。因此，在以下示例中：
+child fiber 对应于组件的 `render` 方法返回的值。因此，在以下示例中：
 
 ```js
 function Parent() {
@@ -194,9 +200,9 @@ function Parent() {
 }
 ```
 
-Parent 的 child fiber 对应于 Child。
+`Parent` 的 child fiber 对应于 `Child`。
 
-sibling 字段解决了 render 返回多个子元素的情况（这是 Fiber 中的一个新功能！）：
+sibling 字段解决了 `render` 返回多个子元素的情况（这是 Fiber 中的一个新功能！）：
 
 ```js
 function Parent() {
@@ -204,25 +210,31 @@ function Parent() {
 }
 ```
 
-child fibers 形成一个单链表，其头部是第一个子元素。因此，在此示例中，Parent 的 child 是 Child1，Child1 的 sibling 是 Child2。
+child fibers 形成一个单链表，其头部是第一个子元素。因此，在此示例中，`Parent` 的 child 是 `Child1`，`Child1` 的 sibling 是 `Child2`。
 
-回到我们的函数类比，您可以将 child fiber 视为尾调用的函数。
+回到我们的函数类比，您可以将 child fiber 视为[尾调用的函数](20)。
+
+[20]: https://en.wikipedia.org/wiki/Tail_call
 
 ## return
 
 返回 fiber 是程序在处理当前 fiber 后应返回的 fiber。从概念上讲，它与堆栈帧的返回地址相同。它也可以被视为父 fiber。
 
-如果一个 fiber 有多个 child fiber，每个 child fiber 的返回 fiber 都是它们的父 fiber。因此，在我们之前的示例中，Child1 和 Child2 的返回 fiber 是 Parent。
+如果一个 fiber 有多个 child fiber，每个 child fiber 的返回 fiber 都是它们的父 fiber。因此，在我们之前的示例中，`Child1` 和 `Child2` 的返回 fiber 是 `Parent`。
 
 ### pendingProps 和 memoizedProps
 
-从概念上讲，props 是函数的参数。fiber 的 pendingProps 在执行开始时设置，memoizedProps 在执行结束时设置。
+从概念上讲，props 是函数的参数。fiber 的 `pendingProps` 在执行开始时设置，`memoizedProps` 在执行结束时设置。
 
-当传入的 pendingProps 等于 memoizedProps 时，这表明 fiber 的先前输出可以被重用，从而避免不必要的工作。
+当传入的 `pendingProps` 等于 `memoizedProps` 时，这表明 fiber 的先前输出可以被重用，从而避免不必要的工作。
 
 ### pendingWorkPriority
 
-priority 是表示 fiber 所代表的工作优先级的数字。ReactPriorityLevel 模块列出了不同的优先级级别以及它们所代表的内容。
+priority 是表示 fiber 所代表的工作优先级的数字。[ReactPriorityLevel](30) 模块列出了不同的优先级级别以及它们所代表的内容。
+
+[30]: https://github.com/facebook/react/blob/master/src/renderers/shared/fiber/ReactPriorityLevel.js
+
+除了 `NoWork` (表示0) 之外，较大的数字表示较低的优先级。例如，您可以使用以下函数来检查fiber的优先级是否至少与给定级别一样高：
 
 ```js
 function matchesPriority(fiber, priority) {
@@ -230,17 +242,17 @@ function matchesPriority(fiber, priority) {
 }
 ```
 
-是的，这个函数只是为了说明，它实际上不是 React Fiber 代码库的一部分。
+_是的，这个函数只是为了说明，它实际上不是 React Fiber 代码库的一部分。_
 
 调度程序使用 priority 字段来搜索下一个要执行的工作单元。该算法将在以后的部分中讨论。
 
 ### alternate
 
-**flush**
+**_flush_**
 
 &emsp;flush a fiber 就是把它的输出渲染到屏幕上。
 
-**work-in-progress**
+**_work-in-progress_**
 
 &emsp;一个尚未完成的 Fiber，从概念上来说，可以看做是一个尚未返回的堆栈帧。
 
@@ -248,13 +260,13 @@ function matchesPriority(fiber, priority) {
 
 当前 Fiber 的备用 Fiber 是正在进行的 Fiber，而正在进行的 Fiber 的备用 Fiber 是当前 Fiber。
 
-一个 Fiber 的备用 Fiber 是通过 lazy（惰性）方式使用 cloneFiber 函数来创建的。与其总是创建一个新的对象，cloneFiber 将尝试重用 Fiber 的备用 Fiber（如果存在），从而最小化内存分配。
+一个 Fiber 的备用 Fiber 是通过 lazy（惰性）方式使用 `cloneFiber` 函数来创建的。与其总是创建一个新的对象，`cloneFiber` 将尝试重用 Fiber 的备用 Fiber（如果存在），从而最小化内存分配。
 
-你应该将备用字段视为一种实现细节，但它在代码库中经常出现，因此在这里讨论它是有价值的。
+你应该将 `alternate` 字段视为一种实现细节，但它在代码库中经常出现，因此在这里讨论它是有价值的。
 
 ### output
 
-**宿主组件**
+**_host component_**
 
 &emsp;React 应用程序的叶节点。它们是特定于渲染环境的（例如，在浏览器应用程序中，它们是 div，span 等）。在 JSX 中，它们使用小写标签名称表示。
 
