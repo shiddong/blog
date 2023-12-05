@@ -1,0 +1,166 @@
+---
+title: React Hooks 的实现 - useCookie
+date: '2022-09-10'
+tags: ['react-hooks']
+draft: false
+summary:
+---
+
+# 实现需求
+
+实现一个可以便利操作 cookie，并对其进行状态管理（状态驱动）的 hook.
+
+# Cookie 的 API 分析
+
+> document.cookie [MDN 文档介绍](1-1)
+>
+> js-cookie 包 [NPM README](1-2)
+
+[1-1]: https://developer.mozilla.org/zh-CN/docs/Web/API/Document/cookie
+[1-2]: https://www.npmjs.com/package/js-cookie?activeTab=readme
+
+## document.cookie
+
+```javascript
+// create a new cookie / write
+document.cookie = 'key1=Hello'
+document.cookie = 'key2=World'
+
+// read all cookies
+const cookies = document.cookie // cookies 是一个键值对形式的字符串: 'key1=Hello; key2=World'
+
+// read one cookie
+// 第一种实现方式
+function read(cookieKey) {
+  const result = document.cookie.replace(
+    new RegExp(`(?:(?:^|.*;\\s*)${cookieKey}\\s*\=\\s*([^;]*).*$)|^.*$`),
+    '$1'
+  )
+
+  return result
+}
+
+// 第二种实现方式
+function read(cookieKey) {
+  return document.cookie
+  .split("; ")
+  .find((row) => row.startsWith(`${cookieKey}=`))
+  ?.split("=")[1];
+}
+
+read('key1) // Hello
+```
+
+在设置 cookie 时，有多个可选的属性值可以跟在键值对之后，用来具化对 cookie 的设定/更新，使用分号以作分隔。
+
+- ;path=path (例如 '/', '/mydir') 如果没有定义，默认为当前文档位置的路径。
+- ;domain=domain (例如 'example.com'， 'subdomain.example.com') 如果没有定义，默认为当前文档位置的路径的域名部分。
+  与早期规范相反的是，在域名前面加 . 符将会被忽视，因为浏览器也许会拒绝设置这样的 cookie。如果指定了一个域，那么子域也包含在内。
+- ;max-age=max-age-in-seconds (例如一年为 60\*60\*24\*365)
+- ;expires=date-in-GMTString-format 如果没有定义，cookie 会在对话结束时过期，其定义为 [Date.prototype.toUTCString()][1-3]
+- ;secure (cookie 只通过 https 协议传输)
+
+可以看到，原生的 cookie API 使用很不便利，没有直接提供简易的 `create, set, get, remove/delete` 等方法。
+
+[1-3]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toUTCString
+
+## js-cookie
+
+js-cookie 包封装了对 cookie 的常用操作，并且它还有以下优点：
+
+- 浏览器兼容性，宣称支持所有浏览器
+- 提供多种导出方式：ES modules/AMD/CommonJS
+- 包体积小，压缩后小于 800 字节
+- 零依赖
+- 支持 Cookie 属性的设置
+
+其使用方式为，
+
+```typescript
+// create a new cookie
+Cookies.set('name', 'value')
+Cookies.set('name', 'value', { expires: 7 })
+
+// read cookie
+Cookies.get('name') // => 'value'
+Cookies.get('nothing') // => undefined
+
+// read all cookies
+Cookies.get() // => { name: 'value' }
+
+// delete cookie
+Cookies.remove('name')
+```
+
+# 实现思路
+
+基于 js-cookie 对 cookie 的封装能力，封装一个管理 cookie 状态管理的 hook.
+
+## 入参与出参的设计
+
+考虑到应当支持 cookie 的属性设置，所以入参除了 cookie 的 `key`，还应当具有一个 `options` 参数。
+该 `options` 除了包含 js-cookie 支持的属性设置 attributes，还可以包含一个无值时的默认值。
+
+出参的设置除了当前的 cookie state，还包含 cookie 的操作函数：`set`, `remove`，基本与 js-cookie 一致。
+
+```typescript
+function useCookie(key: string, options: Options): [string, Actions]
+
+type State = string | undefined
+interface Options extends Cookies.CookieAttributes {
+  defaultValue?: State | (() => State)
+}
+
+type Actions = {
+  // 每次更新 cookie 时，支持传入新的属性设置，与初始的 options 进行浅层合并
+  set: (value: string, options?: Cookies.CookieAttributes) => void
+  remove: () => void
+}
+```
+
+## 代码设计
+
+```typescript
+import Cookies from 'js-cookie'
+
+function useCookie(cookieKey: string, cookieOptions?: Options = {} as Options) {
+  const [state, setState] = useState<State>(() => {
+    const value = Cookies.get(key)
+    if (isString(value)) {
+      return value
+    }
+
+    const { defaultValue } = cookieOptions
+    if (isFunction(defaultValue)) {
+      return defaultValue()
+    }
+
+    return defaultValue // State: string or undefined
+  })
+
+  const setCookie = useCallback(
+    (cookie: string, options: Cookies.CookieAttributes) => {
+      setState((prevState) => {
+        const { defaultValue, ...restOptions } = { ...cookieOptions, ...options }
+
+        Cookies.set(key, cookie, restOptions)
+        return cookie
+      })
+    },
+    [key]
+  )
+
+  const removeCookie = useCallback(() => {
+    Cookies.remove(key)
+    setState()
+  }, [key])
+
+  return [
+    state,
+    {
+      set: setCookie,
+      remove: removeCookie,
+    },
+  ]
+}
+```

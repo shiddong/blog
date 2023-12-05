@@ -73,13 +73,26 @@ setForm({
 
 ## 入参与出参的设计
 
+参考 `useState` 的接口设计，
+
+```typescript
+function useState<S>(initialState: S | (() => S)): [S, Dispatch<SetStateAction<S>>]
+
+type Dispatch<A> = (value: A) => void
+type SetStateAction<S> = S | ((prevState: S) => S)
+```
+
 其使用方式与 `useState` 保持完全相同，但不同点在于该 hook 仅支持对象类型。
 
 ```typescript
-function useSetState<T extends object>(initialValue: T) : [
-  T,
-  (patch: Partial<T> | (prevState: T) => Partial<T>) => void
+function useSetState<S extends object>(initialValue: S ｜ (() => S)) : [
+  S,
+  // 即 (patch: Partial<S> | (prevState: S) => Partial<S>) => void
+  Dispatch<SetStateAction<S>>
 ]
+
+type Dispatch<A> = (value: A) => void
+type SetStateAction<S> = Partial<S> | ((prevState: S) => Partial<S>)
 ```
 
 ## 代码实现
@@ -87,13 +100,13 @@ function useSetState<T extends object>(initialValue: T) : [
 支持传入数据的更新部分，或使用一个更新函数返回需要更新的部分，它将作为参数 patch 传入 setMergeState 函数中进行合并操作。
 
 ```typescript
-function useSetState<T extends object>(initialValue: T = {} as T) {
+function useSetState<S extends object>(initialValue: S | (() => S) = {} as S) {
   const [state, setState] = useState(initialValue)
 
   // 通过额外的数据对象合并操作，支持传入当前对象的更新部分即可替换完整的数据对象
-  const setMergeState = useCallback((patch: Partial<T> | (prevState: T) => Partial<T>) => {
-    setState(prevState => {
-      const newState = isFunction(patch) ? patch(prevState) : patch;
+  const setMergeState = useCallback((patch: SetStateAction<S>) => {
+    setState((prevState) => {
+      const newState = isFunction(patch) ? patch(prevState) : patch
       // 返回新对象，保证原有数据不可变
       return Object.assign({}, prevState, newState)
     })
@@ -117,6 +130,13 @@ react-use 与 ahooks 对 useSetState 的实现方式很相似。
 
 ## react-use
 
+> 代码实现：[useSetState][2-1]
+>
+> 文档/Demo：[useSetState][2-2]
+
+[2-1]: https://github.com/streamich/react-use/blob/master/src/useSetState.ts
+[2-2]: https://streamich.github.io/react-use/?path=/story/state-usesetstate--docs
+
 ```typescript
 import { useCallback, useState } from 'react'
 
@@ -138,6 +158,13 @@ export default useSetState
 ```
 
 ## ahooks
+
+> 代码实现：[useSetState][3-1]
+>
+> 文档/Demo：[useSetState][3-2]
+
+[3-1]: https://github.com/alibaba/hooks/blob/master/packages/hooks/src/useSetState/index.ts
+[3-2]: https://ahooks.js.org/zh-CN/hooks/use-set-state
 
 接口定义：
 
