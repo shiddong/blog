@@ -3,7 +3,7 @@ title: React Hooks 的实现 - useSetState
 date: '2022-09-10'
 tags: ['react-hooks']
 draft: false
-summary: 实现一个支持在两个 Boolean 值状态之间切换的 useSetState hook.
+summary: 借鉴 this.setState 的对象浅层合并方式，为 setState hook 省去需要使用扩展运算符创建一个完整新对象的步骤，简化修改数据的方式。
 ---
 
 # 需求背景
@@ -214,4 +214,4 @@ const TodoList = () => {
   }, []);
 ```
 
-经 immer 的过封装之后，可以像使用 `setState` 一样自如的使用 `useImmer`，同时可以做到可变数据的修改方式。
+经过 immer 的封装之后，可以像使用 `setState` 一样自如的使用 `useImmer`，同时可以做到可变数据的修改方式。
