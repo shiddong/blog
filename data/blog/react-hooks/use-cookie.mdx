@@ -139,7 +139,7 @@ function useCookie(cookieKey: string, cookieOptions?: Options = {} as Options) {
   })
 
   const setCookie = useCallback(
-    (cookie: string, options: Cookies.CookieAttributes) => {
+    (cookie: string, options?: Cookies.CookieAttributes) => {
       setState((prevState) => {
         const { defaultValue, ...restOptions } = { ...cookieOptions, ...options }
 
