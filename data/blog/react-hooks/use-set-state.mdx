@@ -1,0 +1,217 @@
+---
+title: React Hooks 的实现 - useSetState
+date: '2022-09-10'
+tags: ['react-hooks']
+draft: false
+summary: 实现一个支持在两个 Boolean 值状态之间切换的 useSetState hook.
+---
+
+# 需求背景
+
+React 中已经有了一个 useState，为什么还要设计一个 useSetState 呢？
+
+## 不可变数据 Immutable
+
+在 React 中，状态被认为是只读的，因此应该替换它而不是直接改变现有对象——即不可变数据。比如在状态中保存了一个 form 对象，我们不能直接通过这种方式修改它，
+
+```typescript
+form.firstName = 'Taylor'
+```
+
+而是要通过创建一个新对象来替换整个对象：
+
+```typescript
+const [form, setForm] = useState(initialState)
+
+// 使用新对象替换 state
+setForm({
+  ...form,
+  firstName: 'Taylor',
+})
+```
+
+这里涉及到不可变数据的概念，即
+
+- 可变数据(mutable)：一个数据被创建之后，可以随时进行修改，修改之后会影响到原值，如 `form.firstName = 'Taylor'`
+- 不可变数据(Immutable)： 一旦创建，就不能再被更改的数据。对 Immutable 对象的任何修改、添加或删除等操作都会返回一个新的 Immutable 对象。
+
+## setState 与 this.setState
+
+在 class component 中，是使用 [this.setState](1-1) 来更新 React 组件的 state，其 api 如下，
+
+[1-1]: https://zh-hans.react.dev/reference/react/Component#setstate
+
+```typescript
+setState(nextState, callback?)
+```
+
+`nextState` 接受一个对象或函数。
+this.setState 的处理方式是将传入的对象 `nextState` 与当前状态的对象进行浅层合并。如果传入的是更新函数，是将其返回值与当前状态进行浅层合并到 this.state 中的对象。
+
+# 实现需求
+
+借鉴 `this.setState` 的对象浅层合并方式，为 `setState` hook 省去需要使用扩展运算符创建一个完整新对象的步骤，简化修改数据的方式。
+
+即通过新的 `useSetState` hook 更新数据时，
+
+```
+setForm({
+  firstName: 'Taylor',
+})
+```
+
+实现以下修改的能力。
+
+```typescript
+setForm({
+  ...form,
+  firstName: 'Taylor',
+})
+```
+
+# 实现思路
+
+## 入参与出参的设计
+
+其使用方式与 `useState` 保持完全相同，但不同点在于该 hook 仅支持对象类型。
+
+```typescript
+function useSetState<T extends object>(initialValue: T) : [
+  T,
+  (patch: Partial<T> | (prevState: T) => Partial<T>) => void
+]
+```
+
+## 代码实现
+
+支持传入数据的更新部分，或使用一个更新函数返回需要更新的部分，它将作为参数 patch 传入 setMergeState 函数中进行合并操作。
+
+```typescript
+function useSetState<T extends object>(initialValue: T = {} as T) {
+  const [state, setState] = useState(initialValue)
+
+  // 通过额外的数据对象合并操作，支持传入当前对象的更新部分即可替换完整的数据对象
+  const setMergeState = useCallback((patch: Partial<T> | (prevState: T) => Partial<T>) => {
+    setState(prevState => {
+      const newState = isFunction(patch) ? patch(prevState) : patch;
+      // 返回新对象，保证原有数据不可变
+      return Object.assign({}, prevState, newState)
+    })
+  }, [])
+
+  return [state, setMergeState]
+}
+```
+
+提供一个函数判断的工具函数 `isFunction`，
+
+```typescript
+export const isFunction = (value: unknown): boolean => typeof value === 'function'
+// 或
+export const isFunction = (value: unknown): boolean => value instanceof Function
+```
+
+# 主流库的实现方式
+
+react-use 与 ahooks 对 useSetState 的实现方式很相似。
+
+## react-use
+
+```typescript
+import { useCallback, useState } from 'react'
+
+const useSetState = <T extends object>(
+  initialState: T = {} as T
+): [T, (patch: Partial<T> | ((prevState: T) => Partial<T>)) => void] => {
+  const [state, set] = useState<T>(initialState)
+
+  const setState = useCallback((patch) => {
+    set((prevState) =>
+      Object.assign({}, prevState, patch instanceof Function ? patch(prevState) : patch)
+    )
+  }, [])
+
+  return [state, setState]
+}
+
+export default useSetState
+```
+
+## ahooks
+
+接口定义：
+
+```typescript
+export type SetState<S extends Record<string, any>> = <K extends keyof S>(
+  state: Pick<S, K> | null | ((prevState: Readonly<S>) => Pick<S, K> | S | null)
+) => void
+```
+
+代码实现：
+
+```typescript
+const useSetState = <S extends Record<string, any>>(
+  initialState: S | (() => S)
+): [S, SetState<S>] => {
+  const [state, setState] = useState<S>(initialState)
+
+  const setMergeState = useCallback((patch) => {
+    setState((prevState) => {
+      const newState = isFunction(patch) ? patch(prevState) : patch
+      return newState ? { ...prevState, ...newState } : prevState
+    })
+  }, [])
+
+  return [state, setMergeState]
+}
+
+export default useSetState
+```
+
+## 总结
+
+react-use 与 ahooks 对于这个 hook 的实现只有细微处理上的差别，大同小异。
+
+另外，在处理不可变数据时，使用 [immer](2-1) 是一个不错的选择，它简化了不可变数据结构的处理。
+同时 immer 也为 React 中也提供了一个 [useImmer](2-2) hook，下面是一个使用 demo,
+
+[2-1]: https://immerjs.github.io/immer/zh-CN/
+[2-2]: https://immerjs.github.io/immer/zh-CN/example-setstate#useimmer
+
+```typescript
+import React, { useCallback } from "react";
+import { useImmer } from "use-immer";
+
+const TodoList = () => {
+  const [todos, setTodos] = useImmer([
+    {
+      id: "React",
+      title: "Learn React",
+      done: true
+    },
+    {
+      id: "Immer",
+      title: "Try Immer",
+      done: false
+    }
+  ]);
+
+  const handleToggle = useCallback((id) => {
+    setTodos((draft) => {
+      const todo = draft.find((todo) => todo.id === id);
+      todo.done = !todo.done; // 可变数据的修改方式：直接修改数据属性
+    });
+  }, []);
+
+  const handleAdd = useCallback(() => {
+    setTodos((draft) => {
+      draft.push({
+        id: "todo_" + Math.random(),
+        title: "A new todo",
+        done: false
+      });
+    });
+  }, []);
+```
+
+经 immer 的过封装之后，可以像使用 `setState` 一样自如的使用 `useImmer`，同时可以做到可变数据的修改方式。
