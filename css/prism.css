@@ -62,7 +62,7 @@
   border-radius: 4px;
   font-style: normal;
   opacity: 0.8;
-  @apply border-cyan-400 bg-cyan-100/80 pb-1 pl-4 pr-4 pt-1 dark:border-cyan-600 dark:bg-cyan-900/80;
+  @apply border-cyan-400 bg-cyan-100/50 pb-1 pl-4 pr-4 pt-1 dark:border-cyan-600 dark:bg-cyan-900/80;
 }
 
 .prose :where(blockquote):not(:where([class~='not-prose'] *)) p {
