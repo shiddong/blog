@@ -1,0 +1,178 @@
+---
+title: React Hooks 的实现分析 - useCookie
+date: '2022-09-11'
+tags: ['react-hooks']
+draft: false
+summary: 分析主流 react hooks 开源库对 useCookie 的实现方式
+---
+
+react-use 与 ahooks 对 cookie 进行了封装，而且都是基于 [js-cookie][1-1] 封装的，不同的是两者的命名不同：
+
+- react-use: useCookie
+- ahooks: useCookieState
+
+[1-1]: https://www.npmjs.com/package/js-cookie
+
+js-cookie 包封装了对 cookie 的常用操作，并且它还有以下优点：
+
+- 浏览器兼容性，宣称支持所有浏览器
+- 提供多种导出方式：ES modules/AMD/CommonJS
+- 包体积小，压缩后小于 800 字节
+- 零依赖
+- 支持 Cookie 属性的设置
+
+其使用方式为，
+
+```typescript
+// create a new cookie
+Cookies.set('name', 'value')
+Cookies.set('name', 'value', { expires: 7 })
+
+// read cookie
+Cookies.get('name') // => 'value'
+Cookies.get('nothing') // => undefined
+
+// read all cookies
+Cookies.get() // => { name: 'value' }
+
+// delete cookie
+Cookies.remove('name')
+```
+
+# react-use
+
+> 代码实现：[useCookie][2-1]
+>
+> 文档/Demo：[useCookie][2-2]
+
+[2-1]: https://github.com/streamich/react-use/blob/master/src/useCookie.ts
+[2-2]: https://streamich.github.io/react-use/?path=/story/side-effects-usecookie--docs
+
+react-use 中的 useCookie 的接口定义如下，
+
+```typescript
+function useCookie(
+  cookieName: string
+): [string | null, (newValue: string, options?: Cookies.CookieAttributes) => void, () => void]
+```
+
+react-use 中的 useCookie 只接受在调用 updateCookie 时传入 `options`，而不接受初始的 `options` 进行合并，这就需要每次调用 updateCookie 时都传入 `options`。
+
+不支持使用默认值，其状态的类型为 `string` 或 `null`，这点不同与我们设计的数据值。
+
+其主要导出两个方法：`updateCookie`、`deleteCookie`，导出结构不太符合规范，
+
+```typescript
+const [cookie, updateCookie, deleteCookie] = useCookie(name)
+```
+
+完整的代码实现如下，
+
+```typescript
+import Cookies from 'js-cookie'
+
+const useCookie = (
+  cookieName: string
+): [string | null, (newValue: string, options?: Cookies.CookieAttributes) => void, () => void] => {
+  const [value, setValue] = useState<string | null>(() => Cookies.get(cookieName) || null)
+
+  const updateCookie = useCallback(
+    (newValue: string, options?: Cookies.CookieAttributes) => {
+      // 既要更新状态，也要调用 Cookies 的 API 实际处理 cookie
+      Cookies.set(cookieName, newValue, options)
+      setValue(newValue)
+    },
+    [cookieName]
+  )
+
+  const deleteCookie = useCallback(() => {
+    Cookies.remove(cookieName)
+    setValue(null)
+  }, [cookieName])
+
+  return [value, updateCookie, deleteCookie]
+}
+
+export default useCookie
+```
+
+# ahooks
+
+> 代码实现：[useCookieState][3-1]
+>
+> 文档/Demo：[useCookieState][3-2]
+
+[3-1]: https://github.com/alibaba/hooks/blob/master/packages/hooks/src/useCookieState/index.ts
+[3-2]: https://gpingfeng.github.io/ahooks-analysis/hooks/state/use-cookie-state
+
+接口定义为：
+
+```typescript
+export type State = string | undefined
+
+export interface Options extends Cookies.CookieAttributes {
+  defaultValue?: State | (() => State)
+}
+
+function useCookieState(cookieKey: string, options?: Options) => [
+  State,
+  (
+    newValue: State | ((prevState: State) => State),
+    newOptions: Cookies.CookieAttributes
+  ) => void
+]
+```
+
+与 react-use 中的 useCookie 不同的是，useCookieState 返回一个函数 `updateState` 通过是否传入参数同时处理更新与删除。
+
+并且 ahooks 支持在使用 useCookieState 时传入 `options`，并可传入 `defaultValue`。
+
+- 当需要传递的 `options` 不会变化时，则调用 `updateCookie` 时只需要传递更新值即可；
+- 当 `options` 变化时，传递不同的 `options` 或整体完传递都可以，内部会通过浅层合并获取最终的 `options` 对象作为 cookie 的 attributes.
+
+完整的代码实现如下，
+
+```typescript
+import Cookies from 'js-cookie'
+
+function useCookieState(cookieKey: string, options: Options = {}) {
+  const [state, setState] = useState<State>(() => {
+    const cookieValue = Cookies.get(cookieKey)
+
+    if (isString(cookieValue)) return cookieValue
+
+    if (isFunction(options.defaultValue)) {
+      return options.defaultValue()
+    }
+
+    return options.defaultValue
+  })
+
+  // 该函数兼顾更新与删除
+  const updateState = useMemoizedFn(
+    (
+      newValue: State | ((prevState: State) => State),
+      newOptions: Cookies.CookieAttributes = {}
+    ) => {
+      // 浅层合并 options，若 options 相同，可以不用每次都传递
+      const { defaultValue, ...restOptions } = { ...options, ...newOptions }
+      const value = isFunction(newValue) ? newValue(state) : newValue
+
+      // 既要更新状态，也要调用 Cookies 的 API 实际处理 cookie
+      setState(value)
+
+      // 若传入的值为空，则删除该 cookie
+      if (value === undefined) {
+        Cookies.remove(cookieKey)
+      } else {
+        // 若传入的值为空，则更新该 cookie
+        Cookies.set(cookieKey, value, restOptions)
+      }
+    }
+  )
+
+  return [state, updateState] as const
+}
+
+export default useCookieState
+```

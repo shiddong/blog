@@ -1,0 +1,19 @@
+---
+title: React Hooks 的实现分析 - useLocalStorage 与 useSessionStorage (react-use)
+date: '2022-09-15'
+tags: ['react-hooks']
+draft: true
+summary: 分析主流 react hooks 开源库对 useLocalStorage 与 useSessionStorage 的实现方式 (react-use)
+---
+
+# react-use 实现分析
+
+> 代码实现：[useLocalStorageState][4-1]、[useSessionStorageState][4-2]、[createUseStorageState][4-3]
+>
+> 文档/Demo：[useLocalStorageState][4-4]、[useSessionStorageState][4-5]
+
+[4-1]: https://github.com/alibaba/hooks/blob/master/packages/hooks/src/useLocalStorageState/index.ts
+[4-2]: https://github.com/alibaba/hooks/blob/master/packages/hooks/src/useSessionStorageState/index.ts
+[4-3]: https://github.com/alibaba/hooks/blob/master/packages/hooks/src/createUseStorageState/index.ts
+[4-4]: https://ahooks.js.org/zh-CN/hooks/use-local-storage-state
+[4-5]: https://ahooks.js.org/zh-CN/hooks/use-session-storage-state

@@ -1,0 +1,168 @@
+---
+title: React Hooks 的实现分析 - useBoolean 与 useToggle
+date: '2022-09-08'
+tags: ['react-hooks']
+draft: false
+summary: 分析主流 react hooks 开源库对 useBoolean 与 useToogle 的实现方式
+---
+
+主要解析 react-use 与 ahooks 中 useBoolean 与 useToogle 的实现方式，其基本设计是相同的，具体看下面的介绍。
+
+# react-use
+
+> 代码实现：[useToggle][1-1]、[useBoolean][1-2]
+>
+> 文档/Demo：[useToggle][1-3]、[useBoolean][1-4]
+
+[1-1]: https://github.com/streamich/react-use/blob/master/src/useToggle.ts
+[1-2]: https://github.com/streamich/react-use/blob/master/src/useBoolean.ts
+[1-3]: https://streamich.github.io/react-use/?path=/story/state-usetoggle--docs
+[1-4]: https://streamich.github.io/react-use/?path=/story/state-useboolean--docs
+
+在 react-use 中，useBoolean 只是作为 useToggle 的别名直接导出，属于冗余的设计。
+
+```typescript
+import useBoolean from './useToggle'
+
+export default useBoolean
+```
+
+useToggle 的实现主要是通过 useReducer 实现的，实现上很简单，但 useReducer 还是比较绕的，reducer 和 dispatch 有其单独的入参规范。如果要理解这个 hook 的实现，你需要先理解 useReducer，仅从实现上来说，完全可以用更简单的方式。
+
+```typescript
+import { Reducer, useReducer } from 'react'
+
+const toggleReducer = (state: boolean, nextValue?: any) =>
+  typeof nextValue === 'boolean' ? nextValue : !state
+
+const useToggle = (initialValue: boolean): [boolean, (nextValue?: any) => void] => {
+  // 返回形式为 [state, dispatch]
+  return useReducer<Reducer<boolean, any>>(toggleReducer, initialValue)
+}
+
+export default useToggle
+```
+
+其返回的结构为 `[state, dispatch]`，由于 Reducer 支持范型与重载，这里 dispatch 的接口定义如下，
+
+```typescript
+type Dispatch<A> = (value: A) => void
+type DispatchWithoutAction = () => void
+```
+
+所以它支持的调用方式就可以认为既可以 toggle，也可以直接设置更新值，其接口与我们的接口设计一致。
+
+```typescript
+dispatch()
+dispatch(true)
+```
+
+# ahooks
+
+> 代码实现：[useToogle][2-1]、[useBoolean][2-2]
+>
+> 文档/Demo：[useToggle][2-3]、[useBoolean][2-4]
+
+[2-1]: https://github.com/alibaba/hooks/blob/master/packages/hooks/src/useToggle/index.ts
+[2-2]: https://github.com/alibaba/hooks/blob/master/packages/hooks/src/useBoolean/index.ts
+[2-3]: https://ahooks.js.org/zh-CN/hooks/use-toggle/
+[2-4]: https://ahooks.js.org/zh-CN/hooks/use-boolean
+
+虽然 ahooks 的 useBoolean 也是基于 useToggle，但两者的使用场景还是有差别的，
+
+- useBoolean，是管理 boolean 状态的 Hook，只接受 boolean 值
+- useToggle，用于在两个状态值间切换的 Hook，状态管理的形式区分为左值与右值，两者的类型可以单独定义，支持任意类型
+
+先看 useToggle 的代码实现。
+
+这里使用了 typescript 函数重载来声明入参和出参类型，根据不同的入参返回不同的结果。
+例如第一个入参为 boolean 布尔值，则返回一个元组，第一项为 boolean 值，第二项为更新函数，此时就是 useBoolean 的实现了（只是这里未提供入参，useBoolean 的实现下面会有讲述）。
+
+其更新函数提供了 4 种更新方式:
+
+- setLeft: 设置左值，即 defaultValue（默认值）
+- setRight: 设置右值，即 reverseValue（相反值）；若没有传入 reverseValue，则设置为 defaultValue 的反值
+- set: 修改 state 为传入值
+- toggle: 切换 state，其结果为左值/右值
+
+```typescript
+export interface Actions<T> {
+  setLeft: () => void
+  setRight: () => void
+  set: (value: T) => void
+  toggle: () => void
+}
+
+function useToggle<T = boolean>(): [boolean, Actions<T>]
+function useToggle<T>(defaultValue: T): [T, Actions<T>]
+function useToggle<T, U>(defaultValue: T, reverseValue: U): [T | U, Actions<T | U>]
+```
+
+```typescript
+// 支持传入默认值（左值）与相反值（右值）
+function useToggle<D, R>(defaultValue: D = false as unknown as D, reverseValue?: R) {
+  const [state, setState] = useState<D | R>(defaultValue)
+
+  const actions = useMemo(() => {
+    // 右值的计算结果
+    const reverseValueOrigin = (reverseValue === undefined ? !defaultValue : reverseValue) as D | R
+
+    // 切换 state，其结果为左值/右值
+    const toggle = () => setState((s) => (s === defaultValue ? reverseValueOrigin : defaultValue))
+    // 修改 state
+    const set = (value: D | R) => setState(value)
+    // 设置左值，即 defaultValue（默认值）
+    const setLeft = () => setState(defaultValue)
+    // 设置右值，即 reverseValue（相反值）；若没有传入 reverseValue，则设置为 defaultValue 的反值
+    const setRight = () => setState(reverseValueOrigin)
+
+    return {
+      toggle,
+      set,
+      setLeft,
+      setRight,
+    }
+    // useToggle ignore value change
+    // }, [defaultValue, reverseValue]);
+  }, [])
+
+  return [state, actions]
+}
+```
+
+useBoolean 是基于 useToggle 实现的一个特殊场景，或者称之为一个高频场景，所以单独拎出来实现。
+
+```typescript
+export interface Actions {
+  setTrue: () => void
+  setFalse: () => void
+  set: (value: boolean) => void
+  toggle: () => void
+}
+```
+
+```typescript
+export default function useBoolean(defaultValue = false): [boolean, Actions] {
+  const [state, { toggle, set }] = useToggle(!!defaultValue)
+
+  const actions: Actions = useMemo(() => {
+    const setTrue = () => set(true)
+    const setFalse = () => set(false)
+
+    return {
+      toggle,
+      set: (v) => set(!!v),
+      setTrue,
+      setFalse,
+    }
+  }, [])
+
+  return [state, actions]
+}
+```
+
+# 总结
+
+接口上 react-use 更简洁，利用一个状态修改函数同时 `set` 与 `toggle` 的功能，但作用范围仅限于管理 boolean 状态的切换。
+
+功能上 ahooks 能够支持 boolean 以外的两种状态切换，并且提供多个方法，便利性高一点。同时为了方便更高频的 boolean 状态切换，独立出 useBoolean hook.
