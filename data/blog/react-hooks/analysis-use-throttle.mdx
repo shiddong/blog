@@ -1,0 +1,130 @@
+---
+title: React Hooks 的分析 - useThrottle 系列 hooks
+date: '2022-09-08'
+tags: ['react-hooks', 'react-hooks 分析']
+draft: false
+summary: 分析主流 react hooks / ahooks 开源库对 useThrottle 及其相关 hooks 的实现方式
+---
+
+在 ahooks 中 useThrottle 系列包含了
+
+- 一个状态管理 hook: useThrottle
+- 两个副作用 hook: useThrottleFn 与 useThrottleEffect
+
+与 useDebounce 系列的 hooks 一致，它们都是基于 useThrottleFn 所实现，而 useThrottleFn 又是基于 lodash 中封装的 throttle 实现，其入参、出参接口形式同 [lodash/throttle][1-1].
+
+这 3 个 hooks 的实现逻辑与 useDebounce 系列的实现逻辑完全一致，可以参考说明 [React Hooks 的分析 - useDebounce 系列 hooks][1-2]
+
+[1-1]: https://github.com/lodash/lodash/blob/main/src/throttle.ts
+[1-2]: ./analysis-use-debounce
+
+# useThrottleFn
+
+其实现原理主要是调用 lodash 库中的 throttle 方法。
+
+支持的 options 接口如下：
+
+```typescript
+// useThrottle/throttleOptions.ts
+export interface ThrottleOptions {
+  wait?: number
+  leading?: boolean
+  trailing?: boolean
+}
+```
+
+主体的逻辑实现如下，与 useDebounceFn 封装方式如出一辙。
+
+```typescript
+type noop = (...args: any[]) => any
+
+function useThrottleFn<T extends noop>(fn: T, options?: ThrottleOptions) {
+  if (isDev) {
+    if (!isFunction(fn)) {
+      console.error(`useThrottleFn expected parameter is a function, got ${typeof fn}`)
+    }
+  }
+
+  const fnRef = useLatest(fn)
+
+  const wait = options?.wait ?? 1000
+
+  // 调用 lodash 的节流函数
+  const throttled = useMemo(
+    () =>
+      throttle(
+        (...args: Parameters<T>): ReturnType<T> => {
+          return fnRef.current(...args)
+        },
+        wait,
+        options
+      ),
+    []
+  )
+
+  useUnmount(() => {
+    throttled.cancel()
+  })
+
+  return {
+    run: throttled,
+    cancel: throttled.cancel,
+    flush: throttled.flush,
+  }
+}
+
+export default useThrottleFn
+```
+
+# useThrottleEffect
+
+这个 hook 的功能是为 useEffect 增加节流的能力，实现方式与整体的执行流程与 useDebounceFn 一模一样，不需要多介绍了。
+
+```typescript
+function useThrottleEffect(
+  effect: EffectCallback,
+  deps?: DependencyList,
+  options?: ThrottleOptions
+) {
+  // 通过设置 flag 标识，flag 更新后会触发 useUpdateEffect 中的回调
+  const [flag, setFlag] = useState({})
+
+  const { run } = useThrottleFn(() => {
+    // 更新 flag
+    setFlag({})
+  }, options)
+
+  // 在 deps 数组中的某个依赖变化时，重新执行 run 函数
+  useEffect(() => {
+    return run()
+  }, deps)
+
+  // 只有在 flag 变化的时候，才执行 effect 回调逻辑
+  useUpdateEffect(effect, [flag])
+}
+
+export default useThrottleEffect
+```
+
+# useThrottle
+
+这个 hook 是用来处理节流值的。
+
+```typescript
+function useThrottle<T>(value: T, options?: ThrottleOptions) {
+  const [throttled, setThrottled] = useState(value)
+
+  // 使用节流函数处理更新值
+  const { run } = useThrottleFn(() => {
+    setThrottled(value)
+  }, options)
+
+  useEffect(() => {
+    run()
+  }, [value])
+
+  return throttled
+}
+
+export default useThrottle
+```

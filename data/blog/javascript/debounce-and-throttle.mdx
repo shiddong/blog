@@ -1,0 +1,142 @@
+---
+title: 详解防抖与节流的概念
+date: '2018-02-16'
+tags: ['javascript']
+draft: false
+summary:
+---
+
+防抖（Debounce）与节流（Throttle）可以说是前端领域中非常高频的概念，它们都用于在高频事件中防治逻辑函数被频繁调用，是一种性能优化的方案。
+
+它们的基本区别是：
+
+- 防抖：事件持续触发，当事件停止触发 n 毫秒之后才执行一次逻辑函数
+- 节流：事件持续触发，在事件触发的时间段内，每隔 n 毫秒执行一次逻辑函数
+
+# 防抖
+
+防抖功能一般是在一段时间之后执行具体的逻辑函数，所以一般使用定时器 setTimeout 实现。
+
+## 基础封装
+
+```javascript
+/**
+ * Creates a debounced function that delays invoking `func` until after `wait`
+ * milliseconds have elapsed since the last time the debounced function was
+ * invoked, or until the next browser frame is drawn.
+ *
+ * @param { Function } fn The function to debounce.
+ * @param { number } delay The maximum time `fn` is allowed to be delayed before it's invoked.
+ * @return { Function } Returns the new debounced function.
+ */
+function debounce(fn, delay) {
+  let timer = null
+  return (...args) => {
+    if (timer) {
+      clearTimeout(timer) // 如再次调用，则清理上次的定时器，重新开始计时
+    }
+
+    timer = setTimeout(() => {
+      fn(...args) // 传递参数
+    }, delay)
+  }
+}
+```
+
+## 高级封装
+
+在 JS 的常用工具函数库 Lodash 中，debounce 支持
+
+- `flush()` 立即调用
+- `cancel()` 取消调用
+
+其他的功能诸如使用 `immediate` 参数支持立即调用、返回函数调用结果等实现都比较简单，如下仅为示例，
+具体的处理逻辑可以参见 [lodash](https://github.com/lodash/lodash/blob/main/src/debounce.ts)
+
+```javascript
+// 添加 flush 与 cancel 的逻辑
+function debounce(fn, delay) {
+  let timer = null
+  let lastInvokeArgs = []
+
+  // 用于触发执行逻辑函数
+  const invoke = () => {
+    return fn(...lastInvokeArgs)
+  }
+
+  // 防抖函数主体
+  const debounced = (...args) => {
+    clearTimeout(timer) // 如再次调用，则清理上次的定时器，重新开始计时
+    lastInvokeArgs = args
+
+    timer = setTimeout(invoke, delay)
+  }
+
+  // 立即调用
+  const flush = () => {
+    invoke()
+    clearTimeout(timer)
+  }
+
+  // 取消调用
+  const cancel = () => {
+    clearTimeout(timer)
+  }
+
+  debounced.flush = flush
+  debounced.cancle = cancel
+  return debounced
+}
+```
+
+# 节流
+
+节流的概念是：事件持续触发，在触发的事件段内，每隔 n 毫秒执行一次逻辑函数。将这个 n 毫秒视为一个单位时间。
+若单位时间内触发了多次，只有一次生效，即只会执行一次逻辑函数。
+
+节流可以分为两类：
+
+- 首调用：在触发的事件段内，在一个单位时间结束后，才执行一次逻辑函数 —— 可通过时间戳方式实现
+- 尾调用：在触发的事件段内，在一个单位时间开始后，立即执行一次逻辑函数 —— 可通过设置定时器的方式
+
+## 首调用
+
+```javascript
+/**
+ * Creates a throttled function that only invokes `fn` at most once per
+ * every `wait` milliseconds (or once per browser frame).
+ * @param { Function } fn The function to throttle.
+ * @param { number } wait The number of milliseconds to throttle invocations to.
+ */
+function throttle(fn, wait) {
+  let lastInvokeTime = 0
+  return (...args) => {
+    const now = +Date.now()
+    const remaining = wait - (now - lastInvokeTime)
+    const canInvoke = remaining <= 0
+
+    if (canInvoke) {
+      lastInvokeTime = now
+      fn(...agrs)
+    }
+  }
+}
+```
+
+## 尾调用
+
+```javascript
+function throttle(fn, wait) {
+  let timer = 0
+  return (...args) => {
+    if (timer) {
+      return
+    }
+
+    timer = setTimeout(() => {
+      clearTimeout(timer)
+      fn(...args)
+    }, [wait])
+  }
+}
+```

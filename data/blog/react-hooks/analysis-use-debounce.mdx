@@ -1,0 +1,144 @@
+---
+title: React Hooks 的分析 - useDebounce 系列 hooks
+date: '2022-09-08'
+tags: ['react-hooks', 'react-hooks 分析']
+draft: false
+summary: 分析主流 react hooks / ahooks 开源库对 useDebounce 及其相关 hooks 的实现方式
+---
+
+在 ahooks 中 useDebounce 系列包含了
+
+- 一个状态管理 hook: useDebounce
+- 两个副作用 hook: useDebounceFn 与 useDebounceEffect
+
+它们都是基于 useDebounceFn 所实现，而 useDebounceFn 又是基于 lodash 中封装的 debounce 实现，其入参、出参接口形式同 [lodash/debounce][1-1].
+
+[1-1]: https://github.com/lodash/lodash/blob/main/src/debounce.ts
+
+# useDebounceFn
+
+其实现原理主要是调用 lodash 库中的 debounce 方法。
+
+支持的 options 接口如下：
+
+```typescript
+// useDebounce/debounceOptions.ts
+export interface DebounceOptions {
+  wait?: number // 等待时间，单位为毫秒，默认为 1000
+  leading?: boolean // 是否在延迟开始前调用函数，默认为 false
+  trailing?: boolean // 是否在延迟开始后调用函数，默认为 true
+  maxWait?: number // 最大等待时间，单位为毫秒
+}
+```
+
+主体逻辑实现为：
+
+```typescript
+type noop = (...args: any[]) => any
+
+function useDebounceFn<T extends noop>(fn: T, options?: DebounceOptions) {
+  if (isDev) {
+    if (!isFunction(fn)) {
+      console.error(`useDebounceFn expected parameter is a function, got ${typeof fn}`)
+    }
+  }
+
+  // 采用 ref 的存储方式，保持访问到的 fn 是最新的 —— 可以在调用前修改回调函数
+  const fnRef = useLatest(fn)
+
+  const wait = options?.wait ?? 1000
+
+  // 使用 lodash/debounce 处理防抖
+  const debounced = useMemo(
+    () =>
+      debounce(
+        (...args: Parameters<T>): ReturnType<T> => {
+          return fnRef.current(...args)
+        },
+        wait,
+        options
+      ),
+    []
+  )
+
+  useUnmount(() => {
+    // 在组件卸载时取消
+    debounced.cancel()
+  })
+
+  return {
+    run: debounced,
+    cancel: debounced.cancel, // 取消调用
+    flush: debounced.flush, // 立即调用
+  }
+}
+
+export default useDebounceFn
+```
+
+# useDebounceEffect
+
+这个 hook 的作用是在依赖更新时，延迟调用回调函数 —— 为 useEffect 增加防抖能力。
+
+它是直接基于 useDebounceFn 实现的。
+
+它的整体执行过程是：
+
+1. deps 依赖变化，会执行 run 函数，即 useDebounceFn 返回的 debounced 回调
+2. 等待一个单位时间（ options.wait 毫秒）之后，正式执行具体的逻辑 —— 即更新 flag
+3. flag 的更新会触发 useUpdateEffect 中的回调，此时会执行 effect 中的回调函数逻辑
+
+```typescript
+import type { DependencyList, EffectCallback } from 'react'
+
+function useDebounceEffect(
+  effect: EffectCallback,
+  deps?: DependencyList,
+  options?: DebounceOptions
+) {
+  // 通过设置 flag 标识，flag 更新后会触发 useUpdateEffect 中的回调
+  const [flag, setFlag] = useState({})
+
+  const { run } = useDebounceFn(() => {
+    // 更新 flag
+    setFlag({})
+  }, options)
+
+  // 在 deps 数组中的某个依赖变化时，重新执行 run 函数
+  useEffect(() => {
+    return run()
+  }, deps)
+
+  // 只有在 flag 变化的时候，才执行 effect 回调逻辑
+  useUpdateEffect(effect, [flag])
+}
+
+export default useDebounceEffect
+```
+
+# useDebounce
+
+这个 hook 的作用是获取延迟时间之后的 value 值 —— 相当于是为 useMemo 增加防抖能力。
+
+它也是直接基于 useDebounceFn 实现的。
+
+相比于 useDebounceEffect，它的逻辑更简单一些，仅仅是在依赖（即 value）变化时执行 debounced 函数，在一个单位时间之后更新值。
+
+```typescript
+function useDebounce<T>(value: T, options?: DebounceOptions) {
+  const [debounced, setDebounced] = useState(value)
+
+  // 使用防抖函数处理更新值
+  const { run } = useDebounceFn(() => {
+    setDebounced(value)
+  }, options)
+
+  useEffect(() => {
+    run()
+  }, [value])
+
+  return debounced
+}
+
+export default useDebounce
+```
