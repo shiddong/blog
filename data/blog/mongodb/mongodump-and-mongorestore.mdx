@@ -6,11 +6,25 @@ draft: false
 summary: mongodump 和 mongorestore 是 MongoDB 数据库自带的全量备份恢复工具。使用前需要安装官方提供的数据库工具。使用 mongodump 备份是最灵活的，同时也是速度最慢的一种备份工具，因为它需要将数据全部读出来并写入文件。
 ---
 
-mongodump 和 mongorestore 是 MongoDB 数据库自带的全量备份恢复工具。使用前需要安装官方提供的数据库工具（[MongoDB Database Tools](https://www.mongodb.com/docs/database-tools/)）。
+# 冷备份与恢复
 
-使用 mongodump 备份是最灵活的，同时也是速度最慢的一种备份工具，因为它需要将数据全部读出来并写入文件。
+冷备份采用的方式是在停止 MongoDB 服务器后直接创建数据文件的副本，即采用 copy 的方式，也是最简单粗暴的方式。
 
-# 数据备份
+MongoDB将所有数据都存储在数据目录下，默认是 `/data/db/`（Windows下是`C:\data\db\`），启动 MongoDB 时也可以用 `--dbpath` 指定我们自己设置的数据存储目录。
+
+- 备份 MongoDB 数据：只要简单的创建数据存储目录的副本就可以了，直接 copy 一份。
+- 恢复 MongoDB 数据：在 MongoDB 启动时用 --dbpath 指定数据存储目录副本位置。
+
+在服务器运行的情况下直接 copy 是有风险的，可能 copy 出来时，数据已经遭到破坏，这种方式下创建数据目录的副本需要在关闭 MongoDB 服务器的前提下，数据目录中存储的就是关闭那一刻数据的快照，在服务器重新启动之前可以复制目录作为备份。
+
+# 热备份与恢复
+
+热备份与恢复采用的是 MongoDB 数据库自带的全量备份恢复工具 mongodump 和 mongorestore。
+使用前需要安装官方提供的数据库工具（[MongoDB Database Tools](https://www.mongodb.com/docs/database-tools/)）。
+
+mongodump 是一种能在运行时备份的方法。使用 mongodump 备份是最灵活的，同时也是速度最慢的一种备份工具，因为它需要将数据全部读出来并写入文件。
+
+## 数据备份
 
 使用 mongodump 命令可以通过参数指定需要备份的数据量以及转存的服务器。
 其语法如下：
@@ -42,7 +56,7 @@ mongodump -h localhost:27017 -d test -o /var/backups/mongobackups/'date+"%m-%d-%
 
 等待备份完成，完成后可以在备份目录下找到一个以时间命名的文件（如：06-20-18），该文件就是备份数据的存储文件。
 
-# 数据恢复
+## 数据恢复
 
 使用 mongorestore 命令可以恢复备份的数据。
 其语法如下：
@@ -65,7 +79,7 @@ mongorestore -h <hostname><:port> -d dbname <path>
 mongorestore -h 111.231.84.43:27017 -d test /var/backups/mongobackups/06-20-18 --drop
 ```
 
-# oplog 实现数据一致性
+### oplog 实现数据一致性
 
 从开始备份到完成备份的过程中被修改或写入的数据，并不能被 mongodump 完全备份。
 
@@ -81,7 +95,7 @@ mongorestore -h 111.231.84.43:27017 -d test /var/backups/mongobackups/06-20-18 -
 
 因此 mongodump 备份的是某个时间段的数据，而不能表示某个时间点的数据。
 
-## 如何解决数据不一致的问题？
+### 如何解决数据不一致的问题？
 
 那么如何解决在 dump 过程中的增量数据导致最终的备份数据与导出时间节点时的数据不一致的问题呢？
 
@@ -149,7 +163,7 @@ db.coll.update({...}, {$inc: {x: 1}}); // 假设结果：x=2
 
 ![MongoDB Oplog](/static/images/blog/mongodb/mongodb-oplog-2.png)
 
-## 参数
+### 参数
 
 - mongodump
 
@@ -160,7 +174,7 @@ db.coll.update({...}, {$inc: {x: 1}}); // 假设结果：x=2
   - `--oplogFile=<path>`: 指定需要重放的 oplog 文件位置
   - `--oplogLimit=<timestamp>`: 重放 oplog 时截止到指定时间点
 
-# 实践操作
+## 实践操作
 
 ## 重放 oplog
 
@@ -219,7 +233,7 @@ mongorestore --host 127.0.0.1 --oplogReplay dump
 2019-12-27T21:15:31.524+0800 14324 document(s) restored successfully. 0 document(s) failed to restore.
 ```
 
-## 更复杂的重放 oplog
+### 更复杂的重放 oplog
 
 假设全量备份已经恢复到数据库中（无论使用快照、mongodump 或复制数据文件的方式），要重放一部分增量怎么办？
 
@@ -264,7 +278,7 @@ mongodump -d=test -c=records -q='{ "a": { "$gte": 3 }, "date": { "$lt": { "$date
 mongorestore -h 127.0.0.1 --oplogLimit "1577355175:1" --oplogFile dump/local/oplog.rs <空文件夹>
 ```
 
-# 自动备份
+## 自动备份
 
 可以将以下脚本作为参考。
 
