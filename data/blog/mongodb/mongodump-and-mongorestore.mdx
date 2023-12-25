@@ -10,7 +10,7 @@ mongodump 和 mongorestore 是 MongoDB 数据库自带的全量备份恢复工�
 
 使用 mongodump 备份是最灵活的，同时也是速度最慢的一种备份工具，因为它需要将数据全部读出来并写入文件。
 
-## 数据备份
+# 数据备份
 
 使用 mongodump 命令可以通过参数指定需要备份的数据量以及转存的服务器。
 其语法如下：
@@ -19,18 +19,270 @@ mongodump 和 mongorestore 是 MongoDB 数据库自带的全量备份恢复工�
 mongodump -h dbhost -d dbname -o dbdirectory
 ```
 
-参数说明（见 options）：
+参数说明（见ZSXdc fvgb
 
-- `--host=<hostname><:port>, -h=<hostname><:port>`: MongoDB 所在服务器地址，例如：127.0.0.1，当然也可以指定端口号：127.0.0.1:27017
-- `--db=<database>, -d=<database>`: 需要备份的数据库实例，例如：test
-- `--collection=<collection>, -c=<collection>`: 执行备份的集合，如果没有指定，则备份所有集合
-- `--query=<json>, -q=<json>`: 查询条件，需要指定 collection
-- `--out=<path>, -o=<path>`: 指定备份文件的存放目录，该目录需要提前建立，在备份完成后，系统自动在 dump 目录下建立一个 test 目录，在这个目录中存放该数据库实例的备份数据。
+- `--host, -h=<hostname><:port>`: MongoDB 所在服务器地址，例如：127.0.0.1，当然也可以指定端口号：127.0.0.1:27017
+- `--db, -d=<database-name>`: 需要备份的数据库实例，例如：test
+- `--collection, -c=<collection-name>`: 执行备份的集合，如果没有指定，则备份所有集合
+- `--query, -q=<json-string>`: 查询条件，需要指定 collection，`e.g. '{"x":{"$gt":1}}'`
+- `--out, -o=<path>`: 指定备份文件的存放目录，该目录需要提前建立，在备份完成后，系统自动在 dump 目录下建立一个 test 目录，在这个目录中存放该数据库实例的备份数据
 
 更多可选参数：
 
-| 语法                                            | 描述                  | 实例                                           |
-| ----------------------------------------------- | --------------------- | ---------------------------------------------- |
-| mongodump –host HOST_NAME –port PORT_NUMBER     | 备份所有 MongoDB 数据 | mongodump –host runoob.com –port 27017         |
-| mongodump –dbpath DB_PATH –out BACKUP_DIRECTORY |                       | mongodump –dbpath /data/db/ –out /data/backup/ |
-| mongodump –collection COLLECTION –db DB_NAME    | 备份指定数据库的集合  | mongodump –collection mycol –db test           |
+| 语法                                           | 描述                  | 实例                                        |
+| ---------------------------------------------- | --------------------- | ------------------------------------------- |
+| mongodump –-host HOST_NAME –-port PORT_NUMBER  | 备份所有 MongoDB 数据 | mongodump –-host collectin.net –-port 27017 |
+| mongodump –-collection COLLECTION –-db DB_NAME | 备份指定数据库的集合  | mongodump –-collection mycol –-db test      |
+
+示例：
+
+```bash
+mongodump -h localhost:27017 -d test -o /var/backups/mongobackups/'date+"%m-%d-%y"'
+```
+
+等待备份完成，完成后可以在备份目录下找到一个以时间命名的文件（如：06-20-18），该文件就是备份数据的存储文件。
+
+# 数据恢复
+
+使用 mongorestore 命令可以恢复备份的数据。
+其语法如下：
+
+```bash
+mongorestore -h <hostname><:port> -d dbname <path>
+```
+
+参数说明(见 [options](https://www.mongodb.com/docs/database-tools/mongorestore/#options))：
+
+- `--host, -h=<hostname><:port>`: MongoDB 所在的目的服务器地址（既可以在本地还原，也可以还原到任意的目的服务器），默认为： `localhost:27017`
+- `--db, -d=<database>`: 需要恢复的数据库实例，例如：test，当然这个名称也可以和备份时候的不一样，比如 test2
+- `–-drop`: **恢复的时候，先删除当前数据，然后恢复备份的数据。**
+- `–-dir=<string>`: 指定备份的目录。不能同时指定`<path>`和 `–-dir` 选项。
+- `<path>`: mongorestore 最后的一个参数，设置备份数据所在位置，例如：`/var/backups/mongobackups/06-20-18`。不能同时指定 `<path>` 和 `–-dir` 选项，`–-dir` 也可以设置备份目录。
+
+示例：
+
+```bash
+mongorestore -h 111.231.84.43:27017 -d test /var/backups/mongobackups/06-20-18 --drop
+```
+
+# oplog 实现数据一致性
+
+从开始备份到完成备份的过程中被修改或写入的数据，并不能被 mongodump 完全备份。
+
+举个例子:
+在 t0 开始 dump 数据，在 t3 结束 dump，这个时间段内可能是在不停地写入或修改数据，比如，
+
+- 在 t1 时间将数据 A dump 出去，但在 t2 时间又修改了 A，此时因为 A 已经被 dump 出去了，所以 A 的修改并不会被加入到 dump 的结果中
+- 在 t1-t2 时间内 B 被 dump 出去，而 B 是在t0-t1 时间内被修改，那么dump 出来的 B 就是被修改过的值
+
+所以在这段时间内，某份数据在 dump 之后再修改其值是不被记录的，在 dump 之前修改其数据是会被记录的，所以整体的备份结果表示的是整个 dump 时间段内的数据。
+
+![MongoDB Oplog](/static/images/blog/mongodb/mongodb-oplog.png)
+
+因此 mongodump 备份的是某个时间段的数据，而不能表示某个时间点的数据。
+
+## 如何解决数据不一致的问题？
+
+那么如何解决在 dump 过程中的增量数据导致最终的备份数据与导出时间节点时的数据不一致的问题呢？
+
+为了解决这个问题，我们需要把备份过程中执行过的操作，即 oplog，也记录下来。所以，大多数情况下，我们需要给 mongodump 指令添加 --oplog 参数。这样，mongodump 备份从开始到结束过程中所有的操作，也会被记录下来。
+
+而使用 oplog 能够解决的原因是 oplog 所具有的幂等性。
+
+### oplog 的幂等性（idempotent）
+
+假设集合中有两个文档，
+
+```
+{_id: 1, a: 1}
+{_id: 2, b: 0}
+```
+
+考虑以下 3 条 oplog，
+
+- 将 \_id 为 1 的记录的a字段更新为 5
+- 将 \_id 为 1 的记录的a字段更新为 10
+- 将 \_id 为 2 的记录的b字段更新为 20
+
+oplog 示例：
+
+```
+{
+  "ts": Timestamp(1546531845, 1),
+  "t": NumberLong(125),
+  "h": NumberLong("7330107490438995549"),
+  "v": 2,
+  "op": "u",
+  "ns": "test.test",
+  "ui": UUID("efe7e331-4fe6-4a4c-a57a-d4a3c36b28d9"),
+  "o2": {
+    "_id": 1
+  },
+  "wall": ISODate("2019-01-03T16:10:45.557Z"),
+  "o": {
+    "$v": 1,
+    "$set": {
+      "a": 5
+    }
+  }
+}
+```
+
+这 3 条 oplog 是顺序执行的，无论执行多少次，最终得到的结果均是：
+
+```
+{_id: 1, a: 10}
+{_id: 2, b: 20}
+```
+
+有时候为了保持幂等性，变更转变成 oplog 时需要做一些特殊处理。例如：
+
+```
+db.coll.update({...}, {$inc: {x: 1}}); // 假设结果：x=2
+```
+
+这个操作本身不是幂等的，每执行一次 x 就会 +1。而为了让它成为幂等的， MongoDB 在 oplog 中记录的实际内容是：将 x 赋值为 2，而不是让 x 增加 1。
+
+### 用 oplog 的幂等性解决一致性问题
+
+数据恢复时，在备份文件基础之上重放 oplog，重放完毕，最终的记录 A 会被更新为 20。
+
+![MongoDB Oplog](/static/images/blog/mongodb/mongodb-oplog-2.png)
+
+## 参数
+
+- mongodump
+
+  - `--oplog`: 将 mongodump 开始到结束过程中的所有 oplog 复制并输出到结果中。 输出文件位于 `dump/oplog.bson`
+
+- mongorestore
+  - `--oplogReplay`: 恢复完数据文件后再重放 oplog，恢复 mongodump 一段时间中所做的所有操作，保证恢复的是 dump 结束时间点的完整数据。默认重放 `dump/oplog.bson => <dump-directory>/local/oplog.rs.bson`。如果 oplog 不在这，则可以：
+  - `--oplogFile=<path>`: 指定需要重放的 oplog 文件位置
+  - `--oplogLimit=<timestamp>`: 重放 oplog 时截止到指定时间点
+
+# 实践操作
+
+## 重放 oplog
+
+**1. 为了模拟 dump 过程中的数据变化，我们开启一个循环插入数据的线程：**
+
+```
+for(var i = 0; i < 100000; i++) {
+    db.random.insertOne({x: Math.random() * 100000});
+}
+```
+
+**2. 在另一个窗口中我们对其进行 mongodump：**
+
+```bash
+mongodump -h 127.0.0.1:27017 --oplog
+```
+
+执行过程：
+
+![mongodump with oplog](/static/images/blog/mongodb/mongodump-with-oplog.png)
+
+执行完成后，会得到一个 dump 目录，里面包含备份的数据，以及一个 oplog 的 oplog.bson 文件。
+
+得到以下目录文件：
+
+```bash
+dump
+├── admin
+│ ├── system.version.bson
+│ └── system.version.metadata.json
+├── oplog.bson    # oplog 文件
+└── test
+   ├── random.bson # 数据文件
+   └── random.metadata.json # 集合元数据
+```
+
+**3. 使用 mongorestore 恢复到一个新集群**
+
+其中的 --oplogReplay 表示在恢复数据后在重放 oplog，默认重放 dump/oplog.bson 中的数据，这个路径也是备份数据的默认存放路径，如果需要指定 oplog.bson 的路径，可以使用 --oplogFile 参数。另外，--oplogLimit 参数可以指定重放 oplog 时的截止时间点。
+
+```bash
+# 恢复全量备份数据并重放 oplog
+mongorestore --host 127.0.0.1 --oplogReplay dump
+```
+
+执行结果：
+
+```bash
+2019-12-27T21:15:30.708+0800 preparing collections to restore from
+2019-12-27T21:15:30.709+0800 reading metadata for test.random from dump/test/random.metadata.json
+2019-12-27T21:15:30.748+0800 restoring test.random from dump/test/random.bson
+2019-12-27T21:15:31.471+0800 no indexes to restore
+2019-12-27T21:15:31.471+0800 finished restoring test.random (14324 documents, 0 failures)
+2019-12-27T21:15:31.471+0800 replaying oplog
+2019-12-27T21:15:31.524+0800 applied 163 oplog entries
+2019-12-27T21:15:31.524+0800 14324 document(s) restored successfully. 0 document(s) failed to restore.
+```
+
+## 更复杂的重放 oplog
+
+假设全量备份已经恢复到数据库中（无论使用快照、mongodump 或复制数据文件的方式），要重放一部分增量怎么办？
+
+**1. 导出主节点上的 oplog**
+
+```bash
+mongodump --host 127.0.0.1 -d local -c oplog.rs
+```
+
+可以通过 `-q,-- query=<json>` 参数添加时间范围，此时必须要指定 collection，而且查询条件需要使用单引号 `'{ ... }'` 包裹:
+
+```bash
+mongodump -d=test -c=records -q='{ "a": { "$gte": 3 }, "date": { "$lt": { "$date": "2016-01-01T00:00:00.000Z" } } }'
+```
+
+**2. 使用 bsondump 查看导出的 oplog，找到需要截止的时间点，如：**
+
+```
+{
+  "ts": Timestamp(1577355175, 1),
+  "t": NumberLong(23),
+  "h": NumberLong(0),
+  "v": 2,
+  "op": "c",
+  "ns": "foo.$cmd",
+  "ui": UUID("767b3a2b-a1cd-4db8-a74a-71ce9711f368"),
+  "o2": {
+    "numRecords": 1
+  },
+  "wall": ISODate("2019-12-26T10:12:55.436Z"),
+  "o": {
+    "drop": "employees"
+  }
+}
+```
+
+**3. 恢复到指定时间点**
+
+利用 --oplogLimit 指定恢复到这条记录之前，
+
+```bash
+mongorestore -h 127.0.0.1 --oplogLimit "1577355175:1" --oplogFile dump/local/oplog.rs <空文件夹>
+```
+
+# 自动备份
+
+可以将以下脚本作为参考。
+
+```
+#!/bin/bash
+# 备份文件
+basepath="/data/backup/dump-DB$(date +%Y%m%d%H%M%S)"
+
+if [ ! -d "$basepath" ]; then
+    mkdir -p "$basepath”
+fi
+/usr/local/mongodb/bin/mongodump -u <账号> -p <密码> --authenticationDatabase "<库名>" -o $basepath
+# 删除30天之前的备份数据
+find /data/backup/ -mtime +30 -name "dump*" -exec rm -rf {} \;
+```
+
+# 参考文档
+
+- [MongoDB Database Tools - mongodump](https://www.mongodb.com/docs/database-tools/mongodump/)
+- [MongoDB Database Tools - mongorestore](https://www.mongodb.com/docs/database-tools/mongorestore/)
+- [MongoDB高手课-备份与恢复操作｜极客时间](https://time.geekbang.org/course/detail/100040001-184042)
