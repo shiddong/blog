@@ -1,0 +1,123 @@
+---
+title: ES6 的原型链分析
+date: '2020-07-16'
+tags: ['javascript']
+draft: false
+summary: 分析 ES6 Class 与 extends 继承的原型链
+---
+
+使用 React 的开发者可能都经历过如何实现一个 Class 组件，
+
+```javascript
+class Index extends React.Component {
+  // render
+}
+```
+
+这是因为在 ES6 中，提供了更接近传统语言的写法，引入了 Class（类）的概念，作为对象的模板。通过 class 关键字，可以定义类。Class 可以通过 extends 关键字实现继承，让子类继承父类的属性和方法。
+
+# ES6 Class 的原型链分析
+
+我们先利用 class 关键字创建一个 Class 并实例化它，然后分析原型链（[项目代码](https://code.juejin.cn/pen/7324535604451278886)）。
+
+```js
+class Parent {
+  constructor(name) {
+    this.name = name
+  }
+
+  sayName() {
+    return this.name
+  }
+}
+
+const parent = new Parent('parent')
+console.log(parent)
+```
+
+其打印结果如下，
+
+<Image
+  src="/static/images/blog/javascript/print-prototype.png"
+  alt="Parent prototype"
+  width={600}
+  height={500}
+/>
+
+这段代码有两条原型链：构造器原型链和实例原型链。
+原型链分析测试：
+
+```javascript
+// 1.构造器原型链
+console.log(Parent.**proto** === Function.prototype) // true
+console.log(Function.prototype.**proto** === Object.prototype) // true
+console.log(Object.prototype.**proto** === null)
+
+// 2.实例原型链
+console.log(parent.**proto** === Parent.prototype) // true
+console.log(Parent.prototype.**proto** === Object.prototype) // true
+console.log(Object.prototype.**proto** === null) // true
+```
+
+原型链图表表示如下：
+
+![Parent Prototype Graph](/static/images/blog/javascript/parent-prototype-graph.png)
+
+# ES6 的 extends 继承的原型链分析
+
+利用 class 与 extends 关键字创建一个实现继承的 Class 并实例化，然后分析原型链（[项目代码](https://code.juejin.cn/pen/7113718176864534542)）。
+
+```js
+class Parent {
+  constructor(name) {
+    this.name = name
+  }
+  static sayHello() {
+    console.log('hello')
+  }
+  sayName() {
+    return this.name
+  }
+}
+
+class Child extends Parent {
+  constructor(name, age) {
+    super(name)
+    this.age = age
+  }
+
+  sayAge() {
+    return this.age
+  }
+}
+let parent = new Parent('Parent')
+let child = new Child('Child', 18)
+```
+
+同样，这段代码有两条原型链：构造器原型链和实例原型链。
+具体的分析测试：
+
+```js
+// 1.构造器原型链
+console.log(Child.**proto** === Parent); // true
+console.log(Parent.**proto** === Function.prototype); // true
+console.log(Function.prototype.**proto** === Object.prototype); // true
+console.log(Object.prototype.**proto** === null); // true
+
+// 2.实例原型链
+console.log(child.**proto** === Child.prototype); // true
+console.log(Child.prototype.**proto** === Parent.prototype); // true
+console.log(Parent.prototype.**proto** === Object.prototype); // true
+console.log(Object.prototype.**proto** === null); // true
+```
+
+原型链图表表示如下：
+
+![Inherit Prototype Graph](/static/images/blog/javascript/inherit-prototype-graph.png)
+
+结合示例代码与原型链图表，我们可以知道，ES6 extends 的继承主要做了以下工作：
+
+1. 将子类构造函数 Child 的原型 **proto** 指向父类构造函数 Parent
+2. 将子类实例 child 的原型对象 Child.prototype 的原型 **proto** 指向父类 parent 的原型对象 Parent.prototype
+   即图表中添加背景颜色标记的两条线。
+3. 通过 super 实例化父类，从而使子类构造函数 Child 继承了父类构造函数 Parent 中的属性。
